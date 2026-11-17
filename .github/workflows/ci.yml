@@ -24,7 +24,7 @@ jobs:
     outputs:
       has_build: ${{ steps.probe.outputs.has_build }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: probe
         run: |
           if [ -f CMakeLists.txt ]; then
@@ -42,7 +42,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install build dependencies
         run: |
@@ -85,7 +85,7 @@ jobs:
     if: needs.detect.outputs.has_build == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install clang-format
         run: |
@@ -106,7 +106,7 @@ jobs:
     name: Documentation sanity
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Verify required community files exist
         run: |
