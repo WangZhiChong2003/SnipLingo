@@ -50,6 +50,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build pkg-config \
             qt6-base-dev qt6-declarative-dev libsecret-1-dev \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates qml6-module-qtquick-window \
+            qml6-module-qtqml-workerscript \
             tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim \
             xvfb
 
