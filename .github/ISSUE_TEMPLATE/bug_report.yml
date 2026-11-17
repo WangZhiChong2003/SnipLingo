@@ -1,0 +1,117 @@
+name: Bug report
+description: Something does not work — a shortcut, capture, OCR, translation, or the window itself.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The planned `sniplyngo doctor` command is not implemented yet. If the issue
+        is a security vulnerability, **do not** file it here; see
+        [SECURITY.md](https://github.com/WangZhiChong2003/SnipLingo/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Observed behaviour, in one or two sentences.
+      placeholder: Enabled automatic mode and selected text; no translation appeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Enable automatic selection translation
+        2. Select text in Firefox
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Which workflow
+      options:
+        - Automatic selection translate
+        - Region OCR translate
+        - Clipboard translate
+        - Settings / first-run wizard
+        - Tray / daemon lifecycle
+        - Build / install
+    validations:
+      required: true
+
+  - type: dropdown
+    id: display-server
+    attributes:
+      label: Display server
+      options:
+        - Wayland
+        - X11
+        - Not sure (paste `echo $XDG_SESSION_TYPE`)
+    validations:
+      required: true
+
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop environment and version
+      placeholder: GNOME 46 on Ubuntu 24.04 / KDE Plasma 6.1 / sway 1.9
+    validations:
+      required: true
+
+  - type: input
+    id: scale
+    attributes:
+      label: Scaling and monitor setup
+      placeholder: 150% fractional scaling, two monitors (2880x1800 + 1920x1080)
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: SnipLingo version and install channel
+      placeholder: 0.1.0, Flatpak (Flathub) / native .deb / built from source at commit abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`sniplyngo doctor --json` output"
+      description: Contains environment facts only — no captured screen content or translated text.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >
+        From `journalctl --user -u sniplyngo` or the log directory. Logs never contain your text or
+        screenshots; if you see personal content in them, that itself is a bug worth reporting privately.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I am not reporting a security vulnerability here.
+          required: true

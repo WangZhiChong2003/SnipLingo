@@ -1,0 +1,16 @@
+# Normalize line endings; repositories on Linux expect LF.
+* text=auto eol=lf
+
+# Binary assets are stored verbatim.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.gz binary
+
+# Documentation does not count toward language statistics.
+docs/** linguist-documentation
+*.md linguist-documentation
+
+# Qt translation sources are generated from the UI, not hand-edited.
+translations/*.ts linguist-generated

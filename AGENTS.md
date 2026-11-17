@@ -8,12 +8,12 @@ Its primary goal is to let users translate on-screen text with minimal effort, l
 
 ### Core Workflow
 
-1. The user triggers translation through a global keyboard shortcut.
-2. The user selects a screen region or provides selected text.
-3. The application extracts text, using OCR when necessary.
-4. The configured translation engine processes the text.
-5. The translated result appears in a lightweight floating window.
-6. The user can copy the result, dismiss the window, or initiate another translation.
+1. The user explicitly enables automatic selection translation and configures a provider.
+2. When a supported application exposes a new text selection, SnipLingo acquires that selection.
+3. The configured translation engine processes the text, subject to explicit consent for automatic remote transmission.
+4. The translated result appears in a lightweight floating window.
+5. The user can pause automatic observation, copy the result, or dismiss the window.
+6. When automatic selection is unavailable, the user can explicitly paste text or request region OCR where supported.
 
 The application should remain lightweight, responsive, and unobtrusive.
 
@@ -297,7 +297,7 @@ Relevant metrics include:
 - Idle CPU consumption
 - Idle memory usage
 - Application startup time
-- Shortcut-to-selection latency
+- Selection-event-to-result-window latency
 - Capture latency
 - OCR latency
 - Translation overhead
@@ -359,6 +359,8 @@ Privacy protection is a core requirement.
 6. Do not continuously monitor the screen, keyboard, or clipboard by default.
 7. Stop capture-related and background tasks when the application exits.
 8. Treat all external data and network responses as untrusted.
+
+Automatic selection translation requires an explicitly enabled selection-event subscription. It must be pausable, must not monitor ordinary clipboard changes or keystrokes, and must not send selections to a remote provider without explicit consent.
 
 If translation history, automatic translation, or clipboard monitoring is introduced, provide explicit controls for enabling and disabling these features.
 

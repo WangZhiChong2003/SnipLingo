@@ -1,0 +1,79 @@
+name: Feature request
+description: Propose a capability or an improvement to an existing one.
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SnipLingo is intentionally narrow: **enable automatic translation, select text, and read the
+        result**, with explicit alternatives where automatic selection is unavailable. Requests are
+        evaluated against that scope and against
+        [DESIGN.md](https://github.com/WangZhiChong2003/SnipLingo/blob/main/docs/DESIGN.md) §1.4
+        (non-goals). Features that need elevated privileges, continuous screen or keystroke monitoring,
+        or a plugin framework will be declined.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you unable to do today? Describe the workflow, not the implementation.
+      placeholder: Selecting paragraphs in a PDF reader does not show a translation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: How should the application behave? Include any expected interaction or shortcut.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing tools, manual workarounds, or a smaller change that would also solve it.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Text acquisition (selection, clipboard)
+        - Capture / region selection
+        - OCR quality or speed
+        - Translation providers
+        - Result window / visual design
+        - Shortcuts and desktop integration
+        - Settings and onboarding
+        - Privacy controls
+        - Packaging / distribution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where does this matter most
+      options:
+        - Wayland (GNOME)
+        - Wayland (KDE)
+        - Wayland (wlroots: sway/Hyprland)
+        - X11
+        - All platforms
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: This request is inside the project's stated scope (no continuous screen or keystroke monitoring, plugin system, or elevated privileges).
+          required: true
+        - label: I searched existing issues and discussions for this idea.
+          required: true

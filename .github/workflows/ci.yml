@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The design-phase repository has no CMakeLists.txt yet. This gate keeps CI green
+  # before a skeleton with the required CI preset lands. Passing this gate alone
+  # does not mean the application was built or tested.
+  detect:
+    name: Detect build system
+    runs-on: ubuntu-24.04
+    outputs:
+      has_build: ${{ steps.probe.outputs.has_build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        run: |
+          if [ -f CMakeLists.txt ]; then
+            echo "has_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No CMakeLists.txt yet (pre-alpha design phase); build and test jobs are skipped."
+          fi
+
+  build:
+    name: Build and test (Ubuntu Qt)
+    needs: detect
+    if: needs.detect.outputs.has_build == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            qt6-base-dev qt6-declarative-dev libsecret-1-dev \
+            tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim \
+            xvfb
+
+      - name: Report toolchain versions
+        run: cmake --version && ninja --version && pkg-config --modversion Qt6Core
+
+      - name: Configure
+        run: cmake --preset ci -DCMAKE_BUILD_TYPE=RelWithDebInfo 2>&1 | tee configure.log
+
+      - name: Build
+        run: |
+          build_jobs=$(( $(nproc) - 2 ))
+          if [ "$build_jobs" -lt 1 ]; then build_jobs=1; fi
+          cmake --build --preset ci --parallel "$build_jobs"
+
+      - name: Test
+        run: ctest --preset ci --output-on-failure
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-ubuntu-qt
+          path: |
+            build/ci/Testing/Temporary/LastTest.log
+            configure.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  format:
+    name: Code style
+    needs: detect
+    if: needs.detect.outputs.has_build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format
+
+      - name: Check formatting of changed C++ sources
+        run: |
+          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No C++ sources yet."
+            exit 0
+          fi
+          clang-format --version
+          clang-format --dry-run --Werror "${files[@]}"
+
+  docs:
+    name: Documentation sanity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required community files exist
+        run: |
+          set -eu
+          missing=0
+          for f in README.md README.zh-CN.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md \
+                   SECURITY.md CHANGELOG.md docs/DESIGN.md docs/ui-ux-spec.md \
+                   docs/linux-integration.md; do
+            if [ ! -s "$f" ]; then
+              echo "::error file=$f::Required file is missing or empty"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Check for broken relative markdown links
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          root = pathlib.Path(".")
+          link = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+          broken = []
+          for md in list(root.glob("*.md")) + list(root.glob("docs/**/*.md")) + list(root.glob(".github/**/*.md")):
+              text = md.read_text(encoding="utf-8")
+              for target in link.findall(text):
+                  if target.startswith(("http://", "https://", "mailto:", "#")):
+                      continue
+                  path = target.split("#", 1)[0]
+                  if not path:
+                      continue
+                  resolved = (md.parent / path).resolve()
+                  if not resolved.exists():
+                      broken.append(f"{md}: {target}")
+          for entry in broken:
+              print(f"::error::Broken link {entry}")
+          sys.exit(1 if broken else 0)
+          PY

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/WangZhiChong2003/SnipLingo/security/advisories/new
+    about: Report privately. Do not open a public issue for security problems.
+  - name: Question or design discussion
+    url: https://github.com/WangZhiChong2003/SnipLingo/discussions
+    about: Ask about setup, desktop compatibility, or discuss a design decision before writing code.
+  - name: Read the design first
+    url: https://github.com/WangZhiChong2003/SnipLingo/blob/main/docs/DESIGN.md
+    about: Most "why does it work like this" questions are answered in the design document.
