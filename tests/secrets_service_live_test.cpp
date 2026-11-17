@@ -2,6 +2,8 @@
 // live in the desktop keyring" into a verified claim, and it now checks the wire types, not just
 // the values.
 #include <QDBusConnection>
+#include <QLibrary>
+#include <QProcess>
 #include <QThread>
 #include <QtTest>
 
@@ -10,6 +12,53 @@
 #include "fake_secret_service.h"
 #include "secrets/secret_service_store.h"
 #include "test_bus.h"
+
+namespace {
+
+// Temporary CI diagnostics: separate the libdbus layer, Qt's libdbus loading and Qt's own connect.
+QString captured(const QString &program, const QStringList &arguments) {
+    QProcess process;
+    process.start(program, arguments);
+    if (!process.waitForFinished(8000))
+        return QStringLiteral("<timeout>");
+    return (QString::fromUtf8(process.readAllStandardOutput())
+        + QString::fromUtf8(process.readAllStandardError()))
+        .simplified();
+}
+
+// Calls libdbus directly so its own error text is visible; Qt throws it away.
+QString libdbusOpen(const QString &address) {
+    QLibrary lib(QStringLiteral("libdbus-1"), 3);
+    if (!lib.load())
+        return QStringLiteral("load failed: %1").arg(lib.errorString());
+    using ErrorInitFn = void (*)(void *);
+    using OpenFn = void *(*)(const char *, void *);
+    auto init = reinterpret_cast<ErrorInitFn>(lib.resolve("dbus_error_init"));
+    auto open = reinterpret_cast<OpenFn>(lib.resolve("dbus_connection_open_private"));
+    if (!init || !open)
+        return QStringLiteral("resolve failed: %1").arg(lib.errorString());
+    alignas(16) unsigned char error[256] = {};
+    init(error);
+    void *connection = open(address.toUtf8().constData(), error);
+    const auto *name = *reinterpret_cast<const char *const *>(error);
+    const auto *message = *reinterpret_cast<const char *const *>(error + sizeof(void *));
+    if (connection)
+        return QStringLiteral("opened");
+    return QStringLiteral("failed [%1] [%2]")
+        .arg(QString::fromUtf8(name ? name : "?"), QString::fromUtf8(message ? message : "?"));
+}
+
+QString busDiagnostics(const QString &address) {
+    return QStringLiteral("libdbus=[%1] dbus-send-bus=[%2]")
+        .arg(libdbusOpen(address))
+        .arg(captured(QStringLiteral("dbus-send"),
+            {QStringLiteral("--bus=") + address, QStringLiteral("--print-reply"),
+                QStringLiteral("--dest=org.freedesktop.DBus"),
+                QStringLiteral("/org/freedesktop/DBus"),
+                QStringLiteral("org.freedesktop.DBus.ListNames")}));
+}
+
+}  // namespace
 
 class SecretsServiceLiveTest : public QObject {
     Q_OBJECT
@@ -58,7 +107,9 @@ void SecretsServiceLiveTest::initTestCase() {
         ready = m_service->ready();
         serviceError = m_service->lastError();
     });
-    QVERIFY2(ready, qPrintable(QStringLiteral("the fake keyring is not ready: ") + serviceError));
+    QVERIFY2(ready,
+        qPrintable(QStringLiteral("the fake keyring is not ready: %1 [%2]")
+                       .arg(serviceError, busDiagnostics(m_bus.address()))));
 }
 
 void SecretsServiceLiveTest::cleanupTestCase() {
