@@ -52,6 +52,13 @@ QString qrcPath(const QString &file) {
     return QStringLiteral("qrc:/ui/qml/") + file;
 }
 
+// Wayland hides the global pointer position from clients: QCursor::pos() then reports the last
+// position delivered to this process, which is stale while another application holds focus. Only
+// X11 and XWayland sessions answer a real pointer query, so the pointer is used only there.
+bool sessionReportsGlobalPointer() {
+    return QGuiApplication::platformName() == QLatin1String("xcb");
+}
+
 // State that lives as long as the process; the windows and controllers are rebuilt only on exit.
 struct Application {
     core::XdgPaths paths;
@@ -68,8 +75,7 @@ struct Application {
     QObject *settingsWindow = nullptr;
     bool resultWasVisible = false;
     bool automaticPresentation = false;
-    bool haveSelectionPosition = false;
-    QPoint selectionPosition;
+    bool resultAnchorKnown = false;
     QPoint resultAnchor;
 
     bool prepare();
@@ -113,15 +119,6 @@ bool Application::prepare() {
     if (!backend)
         core::log::write(core::log::Level::Info, "app",
             QStringLiteral("selection observation unavailable: %1").arg(creation.reason));
-    if (backend) {
-        // Capture the pointer only when an explicitly enabled selection event occurs. This keeps
-        // the icon near a mouse selection without monitoring pointer motion in the background.
-        QObject::connect(
-            backend.get(), &selection::SelectionBackend::eventObserved, &engine, [this] {
-                selectionPosition = QCursor::pos();
-                haveSelectionPosition = true;
-            });
-    }
 
     coordinator = std::make_unique<coordinator::RequestCoordinator>(
         backend.get(), provider.get(), settings.get());
@@ -178,13 +175,20 @@ void Application::loadWindows() {
     QObject::connect(coordinator.get(), &coordinator::RequestCoordinator::presentationRequested,
         result, [this, result](bool automatic, const QRect &anchor) {
             automaticPresentation = automatic;
+            resultAnchorKnown = false;
+            resultAnchor = QPoint();
             if (automatic) {
-                if (haveSelectionPosition)
-                    resultAnchor = selectionPosition;
-                else if (anchor.isValid() && QGuiApplication::screenAt(anchor.center()))
+                // The backend anchor is the only placement hint a Wayland session offers: AT-SPI
+                // reports the selected text's screen extents, the X11 backend the pointer at the
+                // PRIMARY ownership change. Without it the window is centered instead of being put
+                // at a stale pointer position.
+                if (anchor.isValid() && QGuiApplication::screenAt(anchor.center())) {
                     resultAnchor = anchor.bottomRight();
-                else
+                    resultAnchorKnown = true;
+                } else if (sessionReportsGlobalPointer()) {
                     resultAnchor = QCursor::pos();
+                    resultAnchorKnown = true;
+                }
             }
             result->setProperty("automaticRequest", automatic);
             result->setProperty("activatedForDismissal", false);
@@ -242,7 +246,7 @@ void Application::showResult() {
         const QRect area = screen->availableGeometry();
         const QSize size = window->size();
         QPoint position = area.center() - QPoint(size.width() / 2, size.height() / 2);
-        if (automaticPresentation) {
+        if (automaticPresentation && resultAnchorKnown) {
             constexpr int gap = 12;
             int x = anchor.x() + gap;
             int y = anchor.y() + gap;

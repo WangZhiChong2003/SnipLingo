@@ -160,8 +160,20 @@ focuses it; a global shortcut is optional and may be unavailable. Do not promise
 focus and delivery of arbitrary popup-local shortcuts. Provide clickable actions and a regular settings
 window; GNOME installations without a status-item extension must not depend on a tray.
 
+`QCursor::pos()` is not a Wayland pointer query: Qt derives it from the pointer events this process
+received, so while another application holds the focus it returns a stale position (often the last
+position inside one of our own windows). The automatic window is therefore placed from the anchor the
+selection backend reports — AT-SPI range extents in screen coordinates, or the X11 pointer read at the
+PRIMARY ownership change — and centered on the primary screen when no anchor exists, instead of being
+put at a stale pointer position. No released Wayland protocol exposes the global pointer position;
+`pointer-warp` only lets the compositor move the cursor and `cursor-shape` only sets its image. The
+privileged alternatives are an active ScreenCast session with cursor metadata or an InputCapture
+session, both behind a portal permission prompt, and neither is used here.
+
 Source: [XDG shell](https://wayland.app/protocols/xdg-shell),
-[Qt window positioning](https://doc.qt.io/qt-6/qwindow.html#setPosition).
+[Qt window positioning](https://doc.qt.io/qt-6/qwindow.html#setPosition),
+[wayland-protocols](https://gitlab.freedesktop.org/wayland/wayland-protocols/-/blob/main/meson.build),
+[ScreenCast cursor metadata](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html).
 
 ## 7. Fractional scaling and multiple displays
 
