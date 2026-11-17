@@ -1,5 +1,10 @@
 find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
 
+# Both live D-Bus tests reach a private daemon over TCP; see support/addrconfig_shim.c. The target is
+# created unconditionally because it is independent of the optional AT-SPI backend.
+add_library(addrconfig_shim SHARED support/addrconfig_shim.c)
+target_link_libraries(addrconfig_shim PRIVATE ${CMAKE_DL_LIBS})
+
 # One executable per test file keeps failures attributable and lets `ctest -R core` select a module.
 function(sniplyngo_add_test name)
     # The fake headers contain Q_OBJECT classes; listing them lets AUTOMOC generate their metaobjects.
@@ -77,11 +82,6 @@ set_tests_properties(ui_qml_load_test PROPERTIES
 
 # Only meaningful when the AT-SPI backend was built; it needs a private D-Bus daemon on TCP.
 if(TARGET sniplyngo_platform_atspi)
-    # The private D-Bus daemon is reached over TCP; libdbus looks the address up with AI_ADDRCONFIG,
-    # which fails in a loopback-only network namespace. The shim clears that flag for the test tree.
-    add_library(addrconfig_shim SHARED support/addrconfig_shim.c)
-    target_link_libraries(addrconfig_shim PRIVATE ${CMAKE_DL_LIBS})
-
     sniplyngo_add_test(atspi_backend_live_test)
     target_include_directories(atspi_backend_live_test PRIVATE ${SNIPLYNGO_ATSPI_INCLUDE_DIR})
     set_tests_properties(atspi_backend_live_test PROPERTIES

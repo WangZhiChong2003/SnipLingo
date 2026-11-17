@@ -3,8 +3,8 @@
  *
  * libdbus uses AI_ADDRCONFIG for its TCP transport. In a restricted network namespace that has only
  * a loopback interface (some sandboxes, some CI containers) the resolver then refuses even numeric
- * addresses, so a private D-Bus daemon on 127.0.0.1 is unreachable. The AT-SPI integration test
- * needs exactly that connection; this shim makes the lookup behave like a normal machine. It
+ * addresses, so a private D-Bus daemon on 127.0.0.1 is unreachable. The live D-Bus tests need
+ * exactly that connection; this shim makes the lookup behave like a normal machine. It
  * affects nothing but the test process tree.
  */
 #define _GNU_SOURCE
