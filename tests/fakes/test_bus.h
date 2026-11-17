@@ -43,6 +43,11 @@ inline bool PrivateTestBus::start() {
         "  <listen>tcp:host=127.0.0.1,port=0</listen>\n"
         "  <auth>ANONYMOUS</auth>\n"
         "  <allow_anonymous/>\n"
+        // Ubuntu builds dbus-daemon with AppArmor mediation enabled by default. Mediation asks the
+        // kernel for the peer's label with aa_getpeercon(), which every TCP socket answers with
+        // ENOPROTOOPT, so the daemon drops each client with "Failed to get AppArmor confinement
+        // information of socket peer". This private bus serves one user and needs no mediation.
+        "  <apparmor mode=\"disabled\"/>\n"
         "  <policy context=\"default\">\n"
         "    <allow send_destination=\"*\" eavesdrop=\"true\"/>\n"
         "    <allow eavesdrop=\"true\"/>\n"

@@ -1,21 +1,19 @@
 // Live integration test for the AT-SPI backend.
 //
-// A private D-Bus daemon (started on TCP, so it also works where UNIX sockets are restricted) hosts
-// a fake accessibility service that speaks the real wire protocol. The fake lives on its own thread
-// with an event loop: the backend's calls are blocking, so a same-thread fake could never answer
-// them — the first version of this test failed with "Did not receive a reply" for exactly that
-// reason.
+// A private D-Bus daemon hosts a fake accessibility service that speaks the real wire protocol. The
+// fake lives on its own thread with an event loop: the backend's calls are blocking, so a
+// same-thread fake could never answer them — the first version of this test failed with "Did not
+// receive a reply" for exactly that reason.
 #include "platform/atspi/atspi_backend.h"
 
-#include <QProcess>
 #include <QSignalSpy>
-#include <QTemporaryDir>
 #include <QThread>
 #include <QtTest>
 
 #include <memory>
 
 #include "fake_atspi_service.h"
+#include "test_bus.h"
 
 namespace {
 
@@ -53,9 +51,7 @@ private:
     bool startFake();
     void stopFake();
 
-    QProcess m_daemon;
-    QTemporaryDir m_workspace;
-    QString m_address;
+    PrivateTestBus m_bus;
 
     QThread m_fakeThread;
     QObject m_fakeContext;
@@ -67,57 +63,24 @@ private:
 };
 
 void AtspiBackendLiveTest::initTestCase() {
-    QVERIFY(m_workspace.isValid());
     qputenv("ATSPI_NO_CACHE", "1");  // the fake intentionally exposes no cache interface
 
-    // A private bus on TCP: UNIX sockets may be unavailable in restricted environments, and TCP
-    // keeps the harness identical everywhere. Anonymous auth is required because a TCP peer cannot
-    // present the credentials that EXTERNAL or cookie auth need.
-    const QString configPath = m_workspace.filePath(QStringLiteral("testbus.conf"));
-    QFile config(configPath);
-    QVERIFY(config.open(QIODevice::WriteOnly | QIODevice::Text));
-    config.write(
-        "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN\"\n"
-        " \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">\n"
-        "<busconfig>\n"
-        "  <type>session</type>\n"
-        "  <listen>tcp:host=127.0.0.1,port=0</listen>\n"
-        "  <auth>ANONYMOUS</auth>\n"
-        "  <allow_anonymous/>\n"
-        "  <policy context=\"default\">\n"
-        "    <allow send_destination=\"*\" eavesdrop=\"true\"/>\n"
-        "    <allow eavesdrop=\"true\"/>\n"
-        "    <allow own=\"*\"/>\n"
-        "    <allow user=\"*\"/>\n"
-        "  </policy>\n"
-        "</busconfig>\n");
-    config.close();
-
-    m_daemon.setProgram(QStringLiteral("dbus-daemon"));
-    m_daemon.setArguments({QStringLiteral("--config-file=") + configPath,
-        QStringLiteral("--nofork"), QStringLiteral("--print-address")});
-    m_daemon.start();
-    QVERIFY2(m_daemon.waitForStarted(5000), qPrintable(m_daemon.errorString()));
-    QVERIFY2(m_daemon.waitForReadyRead(5000), "dbus-daemon did not print its address");
-
-    m_address = QString::fromUtf8(m_daemon.readLine()).trimmed();
-    QVERIFY2(m_address.startsWith(QStringLiteral("tcp:")), qPrintable(m_address));
-    qputenv("DBUS_SESSION_BUS_ADDRESS", m_address.toUtf8());
+    QVERIFY2(m_bus.start(), qPrintable(m_bus.error()));
+    qputenv("DBUS_SESSION_BUS_ADDRESS", m_bus.address().toUtf8());
 
     QVERIFY2(startFake(), "the fake accessibility service did not start");
 }
 
 void AtspiBackendLiveTest::cleanupTestCase() {
     stopFake();
-    m_daemon.terminate();
-    m_daemon.waitForFinished(3000);
+    m_bus.stop();
 }
 
 bool AtspiBackendLiveTest::startFake() {
     m_fakeContext.moveToThread(&m_fakeThread);
     m_fakeThread.start();
 
-    const QString address = m_address;
+    const QString address = m_bus.address();
     onFake([this, address] {
         m_service = new FakeAtspiService(address);
         m_fakeReady = m_service->ready();
