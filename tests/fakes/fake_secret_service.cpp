@@ -40,8 +40,22 @@ FakeSecretService::FakeSecretService(const QString &busAddress, QObject *parent)
         m_error = QStringLiteral("cannot connect to %1").arg(busAddress);
         return;
     }
-    if (!m_bus.registerService(QStringLiteral("org.freedesktop.secrets"))) {
-        m_error = QStringLiteral("cannot own org.freedesktop.secrets");
+    // QDBusConnection::registerService() collapses every failure into false. Ask the bus directly
+    // so a broken private bus (refused authentication, denied name ownership) is diagnosed here.
+    QDBusMessage request = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.DBus"),
+        QStringLiteral("/org/freedesktop/DBus"), QStringLiteral("org.freedesktop.DBus"),
+        QStringLiteral("RequestName"));
+    request << QStringLiteral("org.freedesktop.secrets") << 0u;  // no queueing, no replacement
+    const QDBusMessage reply = m_bus.call(request, QDBus::Block, 5000);
+    if (reply.type() != QDBusMessage::ReplyMessage) {
+        m_error
+            = QStringLiteral("cannot own org.freedesktop.secrets: %1").arg(reply.errorMessage());
+        return;
+    }
+    // 1 is DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER, 4 is DBUS_REQUEST_NAME_REPLY_ALREADY_OWNER.
+    const uint code = reply.arguments().value(0).toUInt();
+    if (code != 1u && code != 4u) {
+        m_error = QStringLiteral("cannot own org.freedesktop.secrets: reply code %1").arg(code);
         return;
     }
     if (!m_bus.registerVirtualObject(

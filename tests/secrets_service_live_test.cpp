@@ -53,8 +53,12 @@ void SecretsServiceLiveTest::initTestCase() {
     const QString address = m_bus.address();
     onFake([this, address] { m_service = new FakeSecretService(address); });
     bool ready = false;
-    onFake([this, &ready] { ready = m_service->ready(); });
-    QVERIFY2(ready, "the fake keyring could not take ownership of the service name");
+    QString serviceError;
+    onFake([this, &ready, &serviceError] {
+        ready = m_service->ready();
+        serviceError = m_service->lastError();
+    });
+    QVERIFY2(ready, qPrintable(QStringLiteral("the fake keyring is not ready: ") + serviceError));
 }
 
 void SecretsServiceLiveTest::cleanupTestCase() {
