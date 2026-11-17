@@ -48,14 +48,15 @@ QString libdbusOpen(const QString &address) {
         .arg(QString::fromUtf8(name ? name : "?"), QString::fromUtf8(message ? message : "?"));
 }
 
-QString busDiagnostics(const QString &address) {
-    return QStringLiteral("libdbus=[%1] dbus-send-bus=[%2]")
+QString busDiagnostics(const QString &address, const QString &daemonLog) {
+    return QStringLiteral("libdbus=[%1] dbus-send-bus=[%2] daemon-log=[%3]")
         .arg(libdbusOpen(address))
         .arg(captured(QStringLiteral("dbus-send"),
             {QStringLiteral("--bus=") + address, QStringLiteral("--print-reply"),
                 QStringLiteral("--dest=org.freedesktop.DBus"),
                 QStringLiteral("/org/freedesktop/DBus"),
-                QStringLiteral("org.freedesktop.DBus.ListNames")}));
+                QStringLiteral("org.freedesktop.DBus.ListNames")}))
+        .arg(daemonLog);
 }
 
 }  // namespace
@@ -109,7 +110,7 @@ void SecretsServiceLiveTest::initTestCase() {
     });
     QVERIFY2(ready,
         qPrintable(QStringLiteral("the fake keyring is not ready: %1 [%2]")
-                       .arg(serviceError, busDiagnostics(m_bus.address()))));
+                       .arg(serviceError, busDiagnostics(m_bus.address(), m_bus.daemonLog()))));
 }
 
 void SecretsServiceLiveTest::cleanupTestCase() {

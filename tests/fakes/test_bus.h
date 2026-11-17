@@ -17,6 +17,11 @@ public:
 
     [[nodiscard]] QString error() const { return m_error; }
 
+    // The daemon's own diagnostics: it explains a refused connection, the client cannot.
+    [[nodiscard]] QString daemonLog() {
+        return QString::fromUtf8(m_daemon.readAllStandardError()).trimmed();
+    }
+
 private:
     QProcess m_daemon;
     QTemporaryDir m_workspace;
