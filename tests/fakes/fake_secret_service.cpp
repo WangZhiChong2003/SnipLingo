@@ -166,7 +166,7 @@ QDBusMessage FakeSecretService::dispatch(const QDBusMessage &message) {
             item.attributes = attributes.isEmpty()
                 ? QMap<QString, QString> {{QStringLiteral("application"),
                                               QStringLiteral("SnipLingo")},
-                    {QStringLiteral("key"), key}}
+                      {QStringLiteral("key"), key}}
                 : attributes;
             item.label
                 = properties.value(QStringLiteral("org.freedesktop.Secret.Item.Label")).toString();

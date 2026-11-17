@@ -2,20 +2,18 @@
 // selection conversion (including INCR) and best-effort source identification. Throwaway code.
 #pragma once
 
-#include "common.h"
-
 #include <QByteArray>
 #include <QFile>
 #include <QString>
 
+#include <cstdlib>
+#include <cstring>
+#include <poll.h>
+#include <vector>
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 
-#include <poll.h>
-
-#include <cstdlib>
-#include <cstring>
-#include <vector>
+#include "common.h"
 
 namespace probe::x11 {
 
@@ -44,20 +42,17 @@ struct Connection {
 // X protocol errors arrive as ordinary events with response_type 0. A conversion that is refused
 // (BadTime, BadAtom, BadWindow) is therefore invisible unless they are counted explicitly, which is
 // exactly what "SelectionNotify timeout" hid during the first probe runs.
-inline int &xErrorCount()
-{
+inline int &xErrorCount() {
     static int count = 0;
     return count;
 }
 
-inline int &xLastErrorCode()
-{
+inline int &xLastErrorCode() {
     static int code = 0;
     return code;
 }
 
-inline bool isXfixesSelectionNotify(const Connection &c, const xcb_generic_event_t *event)
-{
+inline bool isXfixesSelectionNotify(const Connection &c, const xcb_generic_event_t *event) {
     return event
         && event->response_type == uint8_t(c.xfixesEventBase + XCB_XFIXES_SELECTION_NOTIFY);
 }
@@ -71,10 +66,9 @@ struct ResolvedText {
     QString strategy;
 };
 
-inline bool internAtom(xcb_connection_t *conn, const char *name, xcb_atom_t *out)
-{
-    xcb_intern_atom_reply_t *reply =
-        xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, uint16_t(std::strlen(name)), name), nullptr);
+inline bool internAtom(xcb_connection_t *conn, const char *name, xcb_atom_t *out) {
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(
+        conn, xcb_intern_atom(conn, 0, uint16_t(std::strlen(name)), name), nullptr);
     if (!reply)
         return false;
     *out = reply->atom;
@@ -83,8 +77,7 @@ inline bool internAtom(xcb_connection_t *conn, const char *name, xcb_atom_t *out
 }
 
 // Opens a private connection plus an unmapped InputOnly requestor window for conversions.
-inline bool open(Connection &out, QString *error)
-{
+inline bool open(Connection &out, QString *error) {
     int screenNumber = 0;
     out.conn = xcb_connect(nullptr, &screenNumber);
     if (!out.conn || xcb_connection_has_error(out.conn)) {
@@ -115,21 +108,19 @@ inline bool open(Connection &out, QString *error)
     out.requestor = xcb_generate_id(out.conn);
     const uint32_t eventMask = XCB_EVENT_MASK_PROPERTY_CHANGE;
     xcb_create_window(out.conn, 0, out.requestor, out.screen->root, -10, -10, 1, 1, 0,
-                      XCB_WINDOW_CLASS_INPUT_ONLY, XCB_COPY_FROM_PARENT, XCB_CW_EVENT_MASK, &eventMask);
+        XCB_WINDOW_CLASS_INPUT_ONLY, XCB_COPY_FROM_PARENT, XCB_CW_EVENT_MASK, &eventMask);
     xcb_flush(out.conn);
     return true;
 }
 
-inline void close(Connection &c)
-{
+inline void close(Connection &c) {
     if (c.conn)
         xcb_disconnect(c.conn);
     c.conn = nullptr;
 }
 
 // Subscribes to PRIMARY ownership notifications.
-inline bool subscribePrimary(Connection &c, QString *error)
-{
+inline bool subscribePrimary(Connection &c, QString *error) {
     const xcb_query_extension_reply_t *extension = xcb_get_extension_data(c.conn, &xcb_xfixes_id);
     if (!extension || !extension->present) {
         *error = QStringLiteral("XFixes extension not present on this server");
@@ -137,8 +128,8 @@ inline bool subscribePrimary(Connection &c, QString *error)
     }
     c.xfixesEventBase = extension->first_event;
     c.xfixesCookie = const_cast<void *>(static_cast<const void *>(&xcb_xfixes_id));
-    xcb_xfixes_query_version_reply_t *version =
-        xcb_xfixes_query_version_reply(c.conn, xcb_xfixes_query_version(c.conn, 5, 0), nullptr);
+    xcb_xfixes_query_version_reply_t *version
+        = xcb_xfixes_query_version_reply(c.conn, xcb_xfixes_query_version(c.conn, 5, 0), nullptr);
     if (!version) {
         *error = QStringLiteral("XFixes QueryVersion failed");
         return false;
@@ -148,10 +139,11 @@ inline bool subscribePrimary(Connection &c, QString *error)
     const uint32_t mask = XCB_XFIXES_SELECTION_EVENT_MASK_SET_SELECTION_OWNER
         | XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_WINDOW_DESTROY
         | XCB_XFIXES_SELECTION_EVENT_MASK_SELECTION_CLIENT_CLOSE;
-    xcb_generic_error_t *err = xcb_request_check(
-        c.conn, xcb_xfixes_select_selection_input_checked(c.conn, c.screen->root, c.atoms.primary, mask));
+    xcb_generic_error_t *err = xcb_request_check(c.conn,
+        xcb_xfixes_select_selection_input_checked(c.conn, c.screen->root, c.atoms.primary, mask));
     if (err) {
-        *error = QStringLiteral("XFixes SelectSelectionInput failed (error_code=%1)").arg(err->error_code);
+        *error = QStringLiteral("XFixes SelectSelectionInput failed (error_code=%1)")
+                     .arg(err->error_code);
         std::free(err);
         return false;
     }
@@ -160,8 +152,7 @@ inline bool subscribePrimary(Connection &c, QString *error)
 }
 
 // Blocking wait for one event; nullptr on timeout.
-inline xcb_generic_event_t *nextEvent(Connection &c, int timeoutMs)
-{
+inline xcb_generic_event_t *nextEvent(Connection &c, int timeoutMs) {
     xcb_flush(c.conn);
     struct pollfd pfd = {xcb_get_file_descriptor(c.conn), POLLIN, 0};
     if (::poll(&pfd, 1, timeoutMs) <= 0)
@@ -170,14 +161,13 @@ inline xcb_generic_event_t *nextEvent(Connection &c, int timeoutMs)
 }
 
 // Best-effort source identification: _NET_WM_PID of the selection owner, then /proc/<pid>/comm.
-inline QString ownerProcessName(Connection &c, xcb_window_t owner)
-{
+inline QString ownerProcessName(Connection &c, xcb_window_t owner) {
     if (owner == XCB_WINDOW_NONE)
         return QStringLiteral("<none>");
 
     for (int depth = 0; depth < 8 && owner != XCB_WINDOW_NONE; ++depth) {
-        xcb_get_property_reply_t *reply = xcb_get_property_reply(
-            c.conn, xcb_get_property(c.conn, 0, owner, c.atoms.netWmPid, XCB_ATOM_CARDINAL, 0, 1), nullptr);
+        xcb_get_property_reply_t *reply = xcb_get_property_reply(c.conn,
+            xcb_get_property(c.conn, 0, owner, c.atoms.netWmPid, XCB_ATOM_CARDINAL, 0, 1), nullptr);
         if (reply && reply->type != XCB_ATOM_NONE && xcb_get_property_value_length(reply) >= 4) {
             const auto pid = *static_cast<const uint32_t *>(xcb_get_property_value(reply));
             std::free(reply);
@@ -188,7 +178,8 @@ inline QString ownerProcessName(Connection &c, xcb_window_t owner)
         }
         std::free(reply);
 
-        xcb_query_tree_reply_t *tree = xcb_query_tree_reply(c.conn, xcb_query_tree(c.conn, owner), nullptr);
+        xcb_query_tree_reply_t *tree
+            = xcb_query_tree_reply(c.conn, xcb_query_tree(c.conn, owner), nullptr);
         if (!tree)
             break;
         owner = tree->parent;
@@ -197,9 +188,9 @@ inline QString ownerProcessName(Connection &c, xcb_window_t owner)
     return QStringLiteral("<unknown>");
 }
 
-inline bool waitForSelectionNotify(Connection &c, std::vector<xcb_xfixes_selection_notify_event_t> *deferred,
-                                   xcb_selection_notify_event_t **out, int timeoutMs)
-{
+inline bool waitForSelectionNotify(Connection &c,
+    std::vector<xcb_xfixes_selection_notify_event_t> *deferred, xcb_selection_notify_event_t **out,
+    int timeoutMs) {
     Stopwatch watch;
     while (watch.ms() < timeoutMs) {
         xcb_generic_event_t *event = nextEvent(c, qMax(1, int(timeoutMs - watch.ms())));
@@ -225,8 +216,7 @@ inline bool waitForSelectionNotify(Connection &c, std::vector<xcb_xfixes_selecti
     return false;
 }
 
-inline bool waitForPropertyNotify(Connection &c, xcb_atom_t property, int timeoutMs)
-{
+inline bool waitForPropertyNotify(Connection &c, xcb_atom_t property, int timeoutMs) {
     Stopwatch watch;
     while (watch.ms() < timeoutMs) {
         xcb_generic_event_t *event = nextEvent(c, qMax(1, int(timeoutMs - watch.ms())));
@@ -246,10 +236,11 @@ inline bool waitForPropertyNotify(Connection &c, xcb_atom_t property, int timeou
 }
 
 // Reads the converted property, handling INCR and enforcing a byte cap.
-inline QByteArray readProperty(Connection &c, int maxBytes, bool *incr, xcb_atom_t *returnedType, QString *error)
-{
-    xcb_get_property_reply_t *reply = xcb_get_property_reply(
-        c.conn, xcb_get_property(c.conn, 0, c.requestor, c.atoms.prop, XCB_ATOM_ANY, 0, maxBytes / 4 + 16), nullptr);
+inline QByteArray readProperty(
+    Connection &c, int maxBytes, bool *incr, xcb_atom_t *returnedType, QString *error) {
+    xcb_get_property_reply_t *reply = xcb_get_property_reply(c.conn,
+        xcb_get_property(c.conn, 0, c.requestor, c.atoms.prop, XCB_ATOM_ANY, 0, maxBytes / 4 + 16),
+        nullptr);
     if (!reply) {
         *error = QStringLiteral("GetProperty failed");
         return {};
@@ -265,8 +256,9 @@ inline QByteArray readProperty(Connection &c, int maxBytes, bool *incr, xcb_atom
                 *error = QStringLiteral("INCR chunk timeout");
                 return {};
             }
-            xcb_get_property_reply_t *chunk = xcb_get_property_reply(
-                c.conn, xcb_get_property(c.conn, 1, c.requestor, c.atoms.prop, XCB_ATOM_ANY, 0, maxBytes / 4 + 16),
+            xcb_get_property_reply_t *chunk = xcb_get_property_reply(c.conn,
+                xcb_get_property(
+                    c.conn, 1, c.requestor, c.atoms.prop, XCB_ATOM_ANY, 0, maxBytes / 4 + 16),
                 nullptr);
             if (!chunk) {
                 *error = QStringLiteral("INCR GetProperty failed");
@@ -300,21 +292,22 @@ inline QByteArray readProperty(Connection &c, int maxBytes, bool *incr, xcb_atom
 
 // Converts PRIMARY to `target` and reads the bytes.
 //
-// Two attempts. The first M0 measurement (automatic harness, Run 8) showed every conversion through an
-// XWayland session stalling for the whole deadline when the XFixes event timestamp was used, while the
-// same request with CurrentTime answered immediately. The event timestamp therefore gets a short
-// deadline, so a stall costs 250 ms instead of 1500 ms, and the winning attempt is reported so the
-// numbers stay honest.
+// Two attempts. The first M0 measurement (automatic harness, Run 8) showed every conversion through
+// an XWayland session stalling for the whole deadline when the XFixes event timestamp was used,
+// while the same request with CurrentTime answered immediately. The event timestamp therefore gets
+// a short deadline, so a stall costs 250 ms instead of 1500 ms, and the winning attempt is reported
+// so the numbers stay honest.
 inline QByteArray convert(Connection &c, xcb_atom_t target, xcb_timestamp_t time, int maxBytes,
-                          std::vector<xcb_xfixes_selection_notify_event_t> *deferred, bool *incr,
-                          xcb_atom_t *returnedType, QString *error, QString *strategy)
-{
+    std::vector<xcb_xfixes_selection_notify_event_t> *deferred, bool *incr,
+    xcb_atom_t *returnedType, QString *error, QString *strategy) {
     struct Attempt {
         xcb_timestamp_t time;
         int deadlineMs;
         const char *label;
     };
-    Attempt attempts[2] = {{time, 250, "event-time/250ms"}, {XCB_CURRENT_TIME, 1500, "CurrentTime/1500ms"}};
+
+    Attempt attempts[2]
+        = {{time, 250, "event-time/250ms"}, {XCB_CURRENT_TIME, 1500, "CurrentTime/1500ms"}};
     const int attemptCount = (time == XCB_CURRENT_TIME) ? 1 : 2;
     if (attemptCount == 1)
         attempts[0] = {XCB_CURRENT_TIME, 1500, "CurrentTime/1500ms"};
@@ -324,7 +317,8 @@ inline QByteArray convert(Connection &c, xcb_atom_t target, xcb_timestamp_t time
     for (int i = 0; i < attemptCount; ++i) {
         const Attempt &attempt = attempts[i];
         Stopwatch watch;
-        xcb_convert_selection(c.conn, c.requestor, c.atoms.primary, target, c.atoms.prop, attempt.time);
+        xcb_convert_selection(
+            c.conn, c.requestor, c.atoms.primary, target, c.atoms.prop, attempt.time);
         xcb_flush(c.conn);
 
         xcb_selection_notify_event_t *notify = nullptr;
@@ -352,8 +346,7 @@ inline QByteArray convert(Connection &c, xcb_atom_t target, xcb_timestamp_t time
 
 // Requests PRIMARY as text, falling back to TARGETS negotiation when UTF8_STRING is refused.
 inline ResolvedText resolvePrimary(Connection &c, xcb_timestamp_t time, int maxChars,
-                                   std::vector<xcb_xfixes_selection_notify_event_t> *deferred)
-{
+    std::vector<xcb_xfixes_selection_notify_event_t> *deferred) {
     ResolvedText out;
     Stopwatch watch;
     const int maxBytes = maxChars * 4 + 64;
@@ -362,8 +355,8 @@ inline ResolvedText resolvePrimary(Connection &c, xcb_timestamp_t time, int maxC
     QString strategy;
     bool incr = false;
     xcb_atom_t type = XCB_ATOM_NONE;
-    QByteArray data = convert(c, c.atoms.utf8String, time, maxBytes, deferred, &incr, &type, &error,
-                              &strategy);
+    QByteArray data
+        = convert(c, c.atoms.utf8String, time, maxBytes, deferred, &incr, &type, &error, &strategy);
 
     if (data.isEmpty() && !error.isEmpty()) {
         QString targetsError;
@@ -371,7 +364,7 @@ inline ResolvedText resolvePrimary(Connection &c, xcb_timestamp_t time, int maxC
         xcb_atom_t targetsType = XCB_ATOM_NONE;
         QString targetsStrategy;
         const QByteArray targets = convert(c, c.atoms.targets, time, 4096, deferred, &targetsIncr,
-                                           &targetsType, &targetsError, &targetsStrategy);
+            &targetsType, &targetsError, &targetsStrategy);
         const auto *atoms = reinterpret_cast<const xcb_atom_t *>(targets.constData());
         const int count = int(targets.size() / int(sizeof(xcb_atom_t)));
         bool hasUtf8 = false;
@@ -381,11 +374,11 @@ inline ResolvedText resolvePrimary(Connection &c, xcb_timestamp_t time, int maxC
             hasString = hasString || atoms[i] == c.atoms.string;
         }
         if (hasUtf8) {
-            data = convert(c, c.atoms.utf8String, time, maxBytes, deferred, &incr, &type, &error,
-                           &strategy);
+            data = convert(
+                c, c.atoms.utf8String, time, maxBytes, deferred, &incr, &type, &error, &strategy);
         } else if (hasString) {
-            data = convert(c, c.atoms.string, time, maxBytes, deferred, &incr, &type, &error,
-                           &strategy);
+            data = convert(
+                c, c.atoms.string, time, maxBytes, deferred, &incr, &type, &error, &strategy);
             if (!data.isEmpty())
                 error.clear();
         } else {
@@ -407,4 +400,4 @@ inline ResolvedText resolvePrimary(Connection &c, xcb_timestamp_t time, int maxC
     return out;
 }
 
-} // namespace probe::x11
+}  // namespace probe::x11

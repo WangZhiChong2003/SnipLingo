@@ -127,7 +127,7 @@ bool runProbe(provider::Provider &engine, const QString &text, const QString &so
     if (error != nullptr) {
         *error = sink.failed ? sink.error
                              : core::Error {core::ErrorCode::ProviderTimeout,
-                                 QStringLiteral("no answer within %1 ms").arg(kTestTimeoutMs)};
+                                   QStringLiteral("no answer within %1 ms").arg(kTestTimeoutMs)};
     }
     if (!sink.finished && !sink.failed)
         engine.cancel(request.generation);

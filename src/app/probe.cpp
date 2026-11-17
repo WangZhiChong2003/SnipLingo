@@ -60,7 +60,7 @@ secrets::ServiceProbe probeSecretService() {
         = serviceRegistered(bus, QStringLiteral("org.freedesktop.secrets"));
     probe.reason = probe.secretServiceRegistered
         ? QStringLiteral(
-            "org.freedesktop.secrets is present; persistent storage is not implemented yet")
+              "org.freedesktop.secrets is present; persistent storage is not implemented yet")
         : QStringLiteral("org.freedesktop.secrets is not present in this session");
     return probe;
 }

@@ -1,11 +1,11 @@
 // M0 feasibility probe CLI. Throwaway: not part of the release build.
-#include "common.h"
-
 #include <QCoreApplication>
 #include <QStringList>
 
 #include <cstdio>
 #include <cstring>
+
+#include "common.h"
 
 int runCaps(bool asJson);
 int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEvents);
@@ -14,8 +14,7 @@ int runAtspiDbusEvents(int durationMs, const QString &outPath);
 
 namespace {
 
-void usage()
-{
+void usage() {
     std::printf(
         "snip-probe — SnipLingo M0 selection feasibility probe (throwaway)\n"
         "\n"
@@ -28,14 +27,14 @@ void usage()
         "  snip-atspi-probe diag | list [--depth N] | watch [--duration MS] [--out FILE]\n"
         "  version\n"
         "\n"
-        "Privacy: selection content is never printed unless --show-text is given, and never stored;\n"
+        "Privacy: selection content is never printed unless --show-text is given, and never "
+        "stored;\n"
         "--out records lengths and an 8-hex-digit digest only.\n"
         "\n"
         "Exit codes: 0 success, 1 nothing observed, 2 capability unavailable.\n");
 }
 
-int intArg(const QStringList &args, const QString &name, int fallback)
-{
+int intArg(const QStringList &args, const QString &name, int fallback) {
     const int index = int(args.indexOf(name));
     if (index < 0 || index + 1 >= args.size())
         return fallback;
@@ -44,22 +43,21 @@ int intArg(const QStringList &args, const QString &name, int fallback)
     return ok ? value : fallback;
 }
 
-QString stringArg(const QStringList &args, const QString &name)
-{
+QString stringArg(const QStringList &args, const QString &name) {
     const int index = int(args.indexOf(name));
     return (index < 0 || index + 1 >= args.size()) ? QString() : args.at(index + 1);
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("snip-probe"));
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0-m0"));
 
     const QStringList args = app.arguments().mid(1);
-    if (args.isEmpty() || args.first() == QLatin1String("help") || args.first() == QLatin1String("--help")) {
+    if (args.isEmpty() || args.first() == QLatin1String("help")
+        || args.first() == QLatin1String("--help")) {
         usage();
         return 0;
     }
@@ -81,7 +79,7 @@ int main(int argc, char **argv)
             return runX11SelfTest(intArg(args, QStringLiteral("--count"), 5));
         if (mode == QLatin1String("watch"))
             return runX11Watch(intArg(args, QStringLiteral("--duration"), 30000), showText, outPath,
-                               intArg(args, QStringLiteral("--max"), 200));
+                intArg(args, QStringLiteral("--max"), 200));
         usage();
         return 0;
     }
@@ -91,7 +89,7 @@ int main(int argc, char **argv)
         if (mode == QLatin1String("dbus-events"))
             return runAtspiDbusEvents(intArg(args, QStringLiteral("--duration"), 30000), outPath);
         std::fprintf(stderr, "use ./snip-atspi-probe for '%s' (Qt-free binary; see --help)\n",
-                     qPrintable(mode));
+            qPrintable(mode));
         usage();
         return 2;
     }

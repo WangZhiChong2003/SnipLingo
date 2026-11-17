@@ -2,8 +2,6 @@
 // subscribe to object:text-selection-changed and receive events? Attribution of an event to its
 // source application is NOT answered here, because QtDBus signal slots do not expose the D-Bus
 // message sender (see the M0 findings in RESULTS.md).
-#include "common.h"
-
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -14,33 +12,34 @@
 
 #include <cstdio>
 
-class DbusEventCounter : public QObject
-{
+#include "common.h"
+
+class DbusEventCounter : public QObject {
     Q_OBJECT
 public:
     explicit DbusEventCounter(probe::Recorder *recorder)
-        : m_recorder(recorder)
-    {
-    }
+        : m_recorder(recorder) { }
 
     int count() const { return m_count; }
+
     double firstEventMs() const { return m_firstEventMs; }
 
 public slots:
+
     void onTextSelectionChanged(const QString &detail1, int detail2, const QDBusVariant &anyData,
-                                const QVariantMap &properties)
-    {
+        const QVariantMap &properties) {
         Q_UNUSED(anyData)
         ++m_count;
         const double at = m_watch.ms();
         if (m_count == 1)
             m_firstEventMs = at;
-        probe::line(QStringLiteral("event=%1 t=%2ms detail1=%3 detail2=%4 properties=%5")
-                        .arg(m_count)
-                        .arg(at, 0, 'f', 1)
-                        .arg(detail1)
-                        .arg(detail2)
-                        .arg(properties.isEmpty() ? QStringLiteral("{}") : QStringLiteral("{...}")));
+        probe::line(
+            QStringLiteral("event=%1 t=%2ms detail1=%3 detail2=%4 properties=%5")
+                .arg(m_count)
+                .arg(at, 0, 'f', 1)
+                .arg(detail1)
+                .arg(detail2)
+                .arg(properties.isEmpty() ? QStringLiteral("{}") : QStringLiteral("{...}")));
         if (m_recorder) {
             QJsonObject record;
             record[QStringLiteral("backend")] = QStringLiteral("atspi-qtdbus");
@@ -58,37 +57,41 @@ private:
     double m_firstEventMs = -1.0;
 };
 
-int runAtspiDbusEvents(int durationMs, const QString &outPath)
-{
+int runAtspiDbusEvents(int durationMs, const QString &outPath) {
     if (!QDBusConnection::sessionBus().isConnected()) {
         probe::line(QStringLiteral("qtdbus: session bus not reachable — cannot probe AT-SPI"));
         return 2;
     }
 
-    const QDBusMessage addressCall =
-        QDBusMessage::createMethodCall(QStringLiteral("org.a11y.Bus"), QStringLiteral("/org/a11y/bus"),
-                                       QStringLiteral("org.a11y.Bus"), QStringLiteral("GetAddress"));
-    const QDBusMessage addressReply = QDBusConnection::sessionBus().call(addressCall, QDBus::Block, 3000);
+    const QDBusMessage addressCall = QDBusMessage::createMethodCall(QStringLiteral("org.a11y.Bus"),
+        QStringLiteral("/org/a11y/bus"), QStringLiteral("org.a11y.Bus"),
+        QStringLiteral("GetAddress"));
+    const QDBusMessage addressReply
+        = QDBusConnection::sessionBus().call(addressCall, QDBus::Block, 3000);
     if (addressReply.type() != QDBusMessage::ReplyMessage || addressReply.arguments().isEmpty()) {
-        probe::line(QStringLiteral("qtdbus: org.a11y.Bus.GetAddress failed — %1").arg(addressReply.errorMessage()));
+        probe::line(QStringLiteral("qtdbus: org.a11y.Bus.GetAddress failed — %1")
+                        .arg(addressReply.errorMessage()));
         return 2;
     }
     const QString address = addressReply.arguments().first().toString();
 
-    QDBusConnection a11y = QDBusConnection::connectToBus(address, QStringLiteral("snip_probe_a11y"));
+    QDBusConnection a11y
+        = QDBusConnection::connectToBus(address, QStringLiteral("snip_probe_a11y"));
     probe::line(QStringLiteral("qtdbus: accessibility bus connected = %1")
                     .arg(a11y.isConnected() ? "yes" : "NO"));
     if (!a11y.isConnected())
         return 2;
 
-    QDBusMessage addMatch =
-        QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.DBus"), QStringLiteral("/org/freedesktop/DBus"),
-                                       QStringLiteral("org.freedesktop.DBus"), QStringLiteral("AddMatch"));
-    addMatch.setArguments({QStringLiteral("type='signal',interface='org.a11y.atspi.Event.Object'")});
+    QDBusMessage addMatch = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.DBus"),
+        QStringLiteral("/org/freedesktop/DBus"), QStringLiteral("org.freedesktop.DBus"),
+        QStringLiteral("AddMatch"));
+    addMatch.setArguments(
+        {QStringLiteral("type='signal',interface='org.a11y.atspi.Event.Object'")});
     const QDBusMessage addMatchReply = a11y.call(addMatch, QDBus::Block, 3000);
     probe::line(QStringLiteral("qtdbus: AddMatch = %1")
-                    .arg(addMatchReply.type() == QDBusMessage::ReplyMessage ? "ok"
-                                                                            : addMatchReply.errorMessage()));
+                    .arg(addMatchReply.type() == QDBusMessage::ReplyMessage
+                            ? "ok"
+                            : addMatchReply.errorMessage()));
 
     // Report the registry's own idea of the signature: the first real run showed `RegisterEvent` is
     // not uniformly (s, a{sv}) — at-spi2-core 2.44 exports the one-argument form.
@@ -119,8 +122,9 @@ int runAtspiDbusEvents(int durationMs, const QString &outPath)
     QString registerError;
     QString registerForm;
     bool registered = false;
-    if (registerOnce({QStringLiteral("object:text-selection-changed"), QVariant::fromValue(QVariantMap())},
-                     &registerError)) {
+    if (registerOnce(
+            {QStringLiteral("object:text-selection-changed"), QVariant::fromValue(QVariantMap())},
+            &registerError)) {
         registered = true;
         registerForm = QStringLiteral("(s, a{sv})");
     } else {
@@ -128,26 +132,28 @@ int runAtspiDbusEvents(int durationMs, const QString &outPath)
         if (registerOnce({QStringLiteral("object:text-selection-changed")}, &oneArgError)) {
             registered = true;
             registerForm = QStringLiteral("(s)");
-            probe::line(QStringLiteral("qtdbus: the (s, a{sv}) form was rejected, the (s) form works"));
+            probe::line(
+                QStringLiteral("qtdbus: the (s, a{sv}) form was rejected, the (s) form works"));
         } else {
             registerError += QStringLiteral(" | ") + oneArgError;
         }
     }
     probe::line(QStringLiteral("qtdbus: RegisterEvent %1 = %2%3")
                     .arg(registerForm.isEmpty() ? QStringLiteral("(both forms)") : registerForm,
-                         registered ? "ok" : "FAILED",
-                         registered ? QString() : QStringLiteral(" — ") + registerError));
+                        registered ? "ok" : "FAILED",
+                        registered ? QString() : QStringLiteral(" — ") + registerError));
 
     probe::Recorder recorder(outPath);
     DbusEventCounter counter(&recorder);
-    const bool connected = a11y.connect(QString(), QString(), QStringLiteral("org.a11y.atspi.Event.Object"),
-                                        QStringLiteral("TextSelectionChanged"), QStringLiteral("siiva{sv}"),
-                                        &counter,
-                                        SLOT(onTextSelectionChanged(QString, int, QDBusVariant, QVariantMap)));
+    const bool connected
+        = a11y.connect(QString(), QString(), QStringLiteral("org.a11y.atspi.Event.Object"),
+            QStringLiteral("TextSelectionChanged"), QStringLiteral("siiva{sv}"), &counter,
+            SLOT(onTextSelectionChanged(QString, int, QDBusVariant, QVariantMap)));
     probe::line(QStringLiteral("qtdbus: signal connection (empty service) = %1")
                     .arg(connected ? "ok" : "FAILED"));
 
-    probe::line(QStringLiteral("qtdbus: listening for %1 ms — select text in an application now").arg(durationMs));
+    probe::line(QStringLiteral("qtdbus: listening for %1 ms — select text in an application now")
+                    .arg(durationMs));
     QTimer::singleShot(durationMs, QCoreApplication::instance(), &QCoreApplication::quit);
 
     probe::Stopwatch loopWatch;
@@ -157,8 +163,10 @@ int runAtspiDbusEvents(int durationMs, const QString &outPath)
     probe::line(QStringLiteral("events received   : %1").arg(counter.count()));
     probe::line(QStringLiteral("first event after : %1 ms").arg(counter.firstEventMs(), 0, 'f', 1));
     probe::line(QStringLiteral("listen duration   : %1 ms").arg(loopWatch.ms(), 0, 'f', 1));
-    probe::line(QStringLiteral("limitation        : QtDBus slot invocation does not expose the D-Bus sender,"));
-    probe::line(QStringLiteral("                    so the source path/application cannot be resolved here."));
+    probe::line(QStringLiteral(
+        "limitation        : QtDBus slot invocation does not expose the D-Bus sender,"));
+    probe::line(QStringLiteral(
+        "                    so the source path/application cannot be resolved here."));
     return counter.count() > 0 ? 0 : 1;
 }
 

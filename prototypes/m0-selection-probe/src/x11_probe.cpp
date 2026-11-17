@@ -1,13 +1,12 @@
 // M0: does XFixes PRIMARY ownership notification + conversion actually deliver selection text?
-#include "common.h"
-#include "x11_common.h"
-
 #include <QJsonObject>
 
 #include <vector>
 
-int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEvents)
-{
+#include "common.h"
+#include "x11_common.h"
+
+int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEvents) {
     probe::x11::Connection c;
     QString error;
     if (!probe::x11::open(c, &error)) {
@@ -24,7 +23,8 @@ int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEv
                     .arg(c.xfixesEventBase));
 
     if (showText)
-        std::fprintf(stderr, "warning: --show-text prints selection content; do not use with sensitive text\n");
+        std::fprintf(stderr,
+            "warning: --show-text prints selection content; do not use with sensitive text\n");
 
     probe::Recorder recorder(outPath);
     probe::Stats resolveStats;
@@ -34,8 +34,9 @@ int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEv
     int unexpectedEvents = 0;
     std::vector<xcb_xfixes_selection_notify_event_t> deferred;
 
-    probe::line(QStringLiteral("x11: watching for %1 ms — select text in any X11/XWayland application")
-                    .arg(durationMs));
+    probe::line(
+        QStringLiteral("x11: watching for %1 ms — select text in any X11/XWayland application")
+            .arg(durationMs));
 
     probe::Stopwatch total;
     while (total.ms() < durationMs && events < maxEvents) {
@@ -48,7 +49,8 @@ int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEv
                 if (notify->owner != XCB_WINDOW_NONE)
                     deferred.push_back(*notify);
             } else if ((event->response_type & ~0x80) != 0) {
-                // Anything else is unexpected here; counting it proves whether events arrive at all.
+                // Anything else is unexpected here; counting it proves whether events arrive at
+                // all.
                 ++unexpectedEvents;
             }
             std::free(event);
@@ -60,20 +62,22 @@ int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEv
         ++events;
 
         const QString app = probe::x11::ownerProcessName(c, event.owner);
-        const probe::x11::ResolvedText resolved = probe::x11::resolvePrimary(c, event.timestamp, 4000, &deferred);
+        const probe::x11::ResolvedText resolved
+            = probe::x11::resolvePrimary(c, event.timestamp, 4000, &deferred);
 
         if (resolved.ok) {
             resolveStats.add(resolved.ms);
             incrCount += resolved.incr ? 1 : 0;
-            probe::line(QStringLiteral("seq=%1 t=%2ms app=%3 chars=%4 digest=%5 incr=%6 resolve=%7ms [%8]")
-                            .arg(events)
-                            .arg(int(total.ms()))
-                            .arg(app)
-                            .arg(resolved.text.size())
-                            .arg(probe::digest8(resolved.text))
-                            .arg(resolved.incr ? "yes" : "no")
-                            .arg(resolved.ms, 0, 'f', 1)
-                            .arg(resolved.strategy));
+            probe::line(
+                QStringLiteral("seq=%1 t=%2ms app=%3 chars=%4 digest=%5 incr=%6 resolve=%7ms [%8]")
+                    .arg(events)
+                    .arg(int(total.ms()))
+                    .arg(app)
+                    .arg(resolved.text.size())
+                    .arg(probe::digest8(resolved.text))
+                    .arg(resolved.incr ? "yes" : "no")
+                    .arg(resolved.ms, 0, 'f', 1)
+                    .arg(resolved.strategy));
             if (showText)
                 std::fprintf(stdout, "    text: \"%s\"\n", qPrintable(resolved.text.left(80)));
         } else {
@@ -113,8 +117,9 @@ int runX11Watch(int durationMs, bool showText, const QString &outPath, int maxEv
                         .arg(resolveStats.percentile(95), 0, 'f', 1)
                         .arg(resolveStats.max(), 0, 'f', 1));
     if (events == 0)
-        probe::line(QStringLiteral("no events: nothing was selected, or the source app does not publish "
-                                   "PRIMARY ownership changes (see docs/design/04-selection.md §7.1)"));
+        probe::line(
+            QStringLiteral("no events: nothing was selected, or the source app does not publish "
+                           "PRIMARY ownership changes (see docs/design/04-selection.md §7.1)"));
     probe::x11::close(c);
     return (events > 0 && failures == 0) ? 0 : 1;
 }

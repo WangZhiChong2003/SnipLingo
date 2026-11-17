@@ -134,7 +134,7 @@ selection::BackendProbe AtspiBackend::probe() {
     probe.accessGranted = reachable;
     probe.reason = reachable
         ? QStringLiteral(
-            "accessibility bus is reachable; per-application coverage is measured, not assumed")
+              "accessibility bus is reachable; per-application coverage is measured, not assumed")
         : reason;
     return probe;
 }
@@ -398,7 +398,7 @@ void AtspiBackend::resolveLatest(
             core::Result<selection::SelectionText> result = source
                 ? readSelection(source, limits)
                 : core::Result<selection::SelectionText>(core::Error {
-                    core::ErrorCode::SelectionCancelled, QStringLiteral("superseded")});
+                      core::ErrorCode::SelectionCancelled, QStringLiteral("superseded")});
             if (source)
                 g_object_unref(source);
             QMetaObject::invokeMethod(

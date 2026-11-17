@@ -93,7 +93,7 @@ selection::BackendProbe X11Backend::probe() {
     const bool hasXfixes = extension && extension->present;
     xcb_xfixes_query_version_reply_t *version = hasXfixes
         ? xcb_xfixes_query_version_reply(
-            connection, xcb_xfixes_query_version(connection, 5, 0), nullptr)
+              connection, xcb_xfixes_query_version(connection, 5, 0), nullptr)
         : nullptr;
     const bool usable = version != nullptr;
     std::free(version);
@@ -103,8 +103,8 @@ selection::BackendProbe X11Backend::probe() {
     probe.accessGranted = usable;
     probe.reason = usable
         ? QStringLiteral(
-            "XFixes is available; applications that do not publish ownership changes stay "
-            "invisible")
+              "XFixes is available; applications that do not publish ownership changes stay "
+              "invisible")
         : QStringLiteral("XFixes PRIMARY is unavailable on the X server");
     return probe;
 }
