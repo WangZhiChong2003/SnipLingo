@@ -1,0 +1,116 @@
+name: Bug report
+description: Report a problem with translation, selection, app windows, or setup.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If the issue is a security vulnerability, use the private channels in
+        [the security policy](https://github.com/WangZhiChong2003/SnipLingo/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Observed behaviour, in one or two sentences.
+      placeholder: Enabled automatic mode and selected text; no translation appeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Enable automatic selection translation
+        2. Select text in Firefox
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Which workflow
+      options:
+        - Automatic selection
+        - Manual translation
+        - Engine or network settings
+        - Floating result
+        - Background operation or system tray
+        - Build / install
+    validations:
+      required: true
+
+  - type: dropdown
+    id: display-server
+    attributes:
+      label: Display server
+      options:
+        - Wayland
+        - X11
+        - Not sure (paste `echo $XDG_SESSION_TYPE`)
+    validations:
+      required: true
+
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop environment and version
+      placeholder: GNOME 46 on Ubuntu 24.04 / KDE Plasma 6.1 / sway 1.9
+    validations:
+      required: true
+
+  - type: input
+    id: scale
+    attributes:
+      label: Scaling and monitor setup
+      placeholder: 150% fractional scaling, two monitors (2880x1800 + 1920x1080)
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: SnipLingo version and install channel
+      placeholder: 0.1.0, built from source at commit abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: capabilities
+    attributes:
+      label: "`sniplyngo caps --json` output"
+      description: You can run ./build/release/sniplyngo caps --json after building from source. Review the output and remove private details before posting.
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >
+        Include terminal output or the visible error message if available. Remove keys, personal paths,
+        selected or translated text, and private screenshots before posting.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I am not reporting a security vulnerability here.
+          required: true

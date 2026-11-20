@@ -1,0 +1,57 @@
+---
+# C++ formatting for SnipLingo. CI runs: clang-format --dry-run --Werror
+Language: Cpp
+BasedOnStyle: WebKit
+Standard: c++20
+
+# Layout
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+BreakBeforeBraces: Attach
+NamespaceIndentation: None
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always
+
+# Short constructs
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
+Cpp11BracedListStyle: true
+
+# Pointers and casts — right-aligned to match Qt's own conventions (QObject *parent).
+DerivePointerAlignment: false
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 2
+
+# Includes: own project headers first, then Qt, then the standard library.
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+IncludeCategories:
+  - Regex: '^"(core|app|text|capture|ocr|translate|platform|ui|infra)/'
+    Priority: 1
+    SortPriority: 1
+  # Qt public headers: <QString>, <QtQuick/QQuickItem>, plus lowercase private headers.
+  - Regex: '^<Q[A-Za-z0-9]*(>|/)|^<q[a-z0-9]+\.h>'
+    Priority: 2
+    SortPriority: 2
+  - Regex: '^<'
+    Priority: 3
+    SortPriority: 3
+  - Regex: '.*'
+    Priority: 4
+    SortPriority: 4
+
+# Comments
+ReflowComments: true
+FixNamespaceComments: true

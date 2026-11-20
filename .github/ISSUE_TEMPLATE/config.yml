@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/WangZhiChong2003/SnipLingo/security/advisories/new
+    about: Report privately. Do not open a public issue for security problems.
+  - name: Linux troubleshooting
+    url: https://github.com/WangZhiChong2003/SnipLingo/blob/main/docs/linux-integration.md
+    about: Check selection, floating results and tray support.

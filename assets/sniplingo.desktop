@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SnipLingo
+Comment=Translate selected or pasted text
+Comment[zh_CN]=翻译选中或粘贴的文本
+Exec=sniplyngo
+Icon=sniplingo-icon
+Terminal=false
+Categories=Utility;TextTools;Dictionary;

@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">SnipLingo application architecture</title>
+  <desc id="desc">Within the SnipLingo desktop process, automatic selections and explicit text go to the request coordinator. It checks consent for automatic remote sending, exchanges requests and replies with the active provider, and delivers results to the Qt Quick interface. Settings and credentials supply configuration separately. Region capture and OCR are planned.</desc>
+  <defs>
+    <linearGradient id="page" x2="0" y2="100%">
+      <stop stop-color="#F5F6FF"/>
+      <stop offset="1" stop-color="#F8FAFD"/>
+    </linearGradient>
+    <linearGradient id="coordinator" x2="100%" y2="100%">
+      <stop stop-color="#4454C1"/>
+      <stop offset="1" stop-color="#323C96"/>
+    </linearGradient>
+    <marker id="flow-arrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1l8 4-8 4" fill="none" stroke="#5E6DB5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="config-arrow" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M1 1l8 4-8 4" fill="none" stroke="#78869F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Liberation Sans", Arial, sans-serif; fill: #1C2745; }
+      .section { font-size: 13px; font-weight: 700; letter-spacing: 1.55px; fill: #48569D; }
+      .title { font-size: 22px; font-weight: 700; }
+      .body { font-size: 16px; fill: #45516B; }
+      .annotation { font-size: 14px; fill: #546283; }
+      .highlight .title { fill: #FFFFFF; }
+      .highlight .section { fill: #D8E0FF; }
+      .highlight .body { fill: #F1F3FF; }
+      .flow { fill: none; stroke: #5E6DB5; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#flow-arrow); }
+      .config { fill: none; stroke: #78869F; stroke-width: 1.9; stroke-dasharray: 5 6; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#config-arrow); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#page)"/>
+  <g transform="translate(49 29) scale(.40)" aria-hidden="true">
+    <g id="brand-symbol" transform="translate(3 4)">
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 37V27a9 9 0 0 1 9-9h10m45 45v10a9 9 0 0 1-9 9H63" stroke="#8591D9" stroke-width="5.5"/>
+        <path d="M31 39h40M60 28l11 11-11 11" stroke="#4655CB" stroke-width="8.5"/>
+        <path d="M69 61H29m11-11L29 61l11 11" stroke="#087D71" stroke-width="8.5"/>
+      </g>
+    </g>
+    <g id="brand-wordmark">
+      <path fill="#192345" transform="translate(116.000 76) scale(0.032 -0.032)" d="M938 1173Q924 1150 909.5 1139.5Q895 1129 872 1129Q850 1129 824.5 1144.5Q799 1160 765.0 1178.0Q731 1196 687.0 1211.5Q643 1227 584 1227Q480 1227 428.0 1180.5Q376 1134 376 1059Q376 1011 404.5 979.5Q433 948 479.5 925.0Q526 902 585.0 884.0Q644 866 706.0 844.5Q768 823 827.0 794.0Q886 765 932.5 721.0Q979 677 1007.5 613.5Q1036 550 1036 459Q1036 360 1001.5 273.5Q967 187 902.0 122.5Q837 58 741.5 21.0Q646 -16 525 -16Q456 -16 387.5 -2.0Q319 12 255.5 37.0Q192 62 136.0 97.0Q80 132 38 175L126 317Q137 333 155.0 343.5Q173 354 193 354Q220 354 250.0 334.0Q280 314 319.0 290.0Q358 266 409.5 246.0Q461 226 533 226Q638 226 695.5 274.0Q753 322 753 417Q753 472 724.5 506.0Q696 540 650.0 563.0Q604 586 545.0 602.5Q486 619 424.0 639.0Q362 659 303.0 687.0Q244 715 198.0 761.0Q152 807 123.5 875.0Q95 943 95 1044Q95 1125 127.0 1201.0Q159 1277 221.0 1336.0Q283 1395 373.5 1431.0Q464 1467 581 1467Q712 1467 823.5 1426.5Q935 1386 1012 1314Z"/>
+      <path fill="#192345" transform="translate(150.088 76) scale(0.032 -0.032)" d="M114 0V1031H284Q336 1031 353 983L370 911Q401 941 434.5 966.0Q468 991 505.5 1009.0Q543 1027 586.5 1037.0Q630 1047 681 1047Q765 1047 830.0 1018.0Q895 989 939.5 937.0Q984 885 1006.5 813.0Q1029 741 1029 655V0H754V655Q754 741 714.0 788.5Q674 836 596 836Q537 836 486.5 810.5Q436 785 390 741V0Z"/>
+      <path fill="#192345" transform="translate(185.776 76) scale(0.032 -0.032)" d="M398 1031V0H122V1031ZM431 1324Q431 1289 417.0 1259.0Q403 1229 379.5 1206.0Q356 1183 324.5 1170.0Q293 1157 257 1157Q223 1157 192.5 1170.0Q162 1183 139.0 1206.0Q116 1229 102.5 1259.0Q89 1289 89 1324Q89 1359 102.5 1389.5Q116 1420 139.0 1443.0Q162 1466 192.5 1479.0Q223 1492 257 1492Q293 1492 324.5 1479.0Q356 1466 379.5 1443.0Q403 1420 417.0 1389.5Q431 1359 431 1324Z"/>
+      <path fill="#192345" transform="translate(201.816 76) scale(0.032 -0.032)" d="M114 -333V1031H284Q336 1031 353 983L374 896Q405 930 440.0 958.5Q475 987 515.0 1007.5Q555 1028 601.0 1039.5Q647 1051 701 1051Q784 1051 853.5 1015.5Q923 980 973.0 912.5Q1023 845 1051.0 747.0Q1079 649 1079 523Q1079 407 1047.5 308.5Q1016 210 958.0 138.0Q900 66 818.5 25.5Q737 -15 637 -15Q553 -15 494.5 10.0Q436 35 390 78V-333ZM606 836Q533 836 483.5 807.0Q434 778 390 724V272Q429 227 474.5 209.0Q520 191 572 191Q622 191 663.0 210.0Q704 229 733.5 269.5Q763 310 779.0 373.0Q795 436 795 523Q795 609 781.5 669.0Q768 729 743.5 766.0Q719 803 684.0 819.5Q649 836 606 836Z"/>
+      <path fill="#4655CB" transform="translate(236.832 76) scale(0.032 -0.032)" d="M452 244H1013V0H152V1451H452Z"/>
+      <path fill="#4655CB" transform="translate(269.640 76) scale(0.032 -0.032)" d="M398 1031V0H122V1031ZM431 1324Q431 1289 417.0 1259.0Q403 1229 379.5 1206.0Q356 1183 324.5 1170.0Q293 1157 257 1157Q223 1157 192.5 1170.0Q162 1183 139.0 1206.0Q116 1229 102.5 1259.0Q89 1289 89 1324Q89 1359 102.5 1389.5Q116 1420 139.0 1443.0Q162 1466 192.5 1479.0Q223 1492 257 1492Q293 1492 324.5 1479.0Q356 1466 379.5 1443.0Q403 1420 417.0 1389.5Q431 1359 431 1324Z"/>
+      <path fill="#4655CB" transform="translate(285.680 76) scale(0.032 -0.032)" d="M114 0V1031H284Q336 1031 353 983L370 911Q401 941 434.5 966.0Q468 991 505.5 1009.0Q543 1027 586.5 1037.0Q630 1047 681 1047Q765 1047 830.0 1018.0Q895 989 939.5 937.0Q984 885 1006.5 813.0Q1029 741 1029 655V0H754V655Q754 741 714.0 788.5Q674 836 596 836Q537 836 486.5 810.5Q436 785 390 741V0Z"/>
+      <path fill="#4655CB" transform="translate(321.368 76) scale(0.032 -0.032)" d="M498 1049Q564 1049 622.5 1035.5Q681 1022 730 997H1033V896Q1033 872 1019.5 858.0Q1006 844 975 837L891 820Q908 771 908 715Q908 638 876.5 576.5Q845 515 790.0 471.5Q735 428 660.0 404.5Q585 381 498 381Q471 381 445.0 383.0Q419 385 394 389Q353 364 353 333Q353 304 381.5 291.0Q410 278 456.5 272.5Q503 267 562.5 265.5Q622 264 683.5 259.0Q745 254 804.5 241.5Q864 229 910.5 200.5Q957 172 985.5 125.0Q1014 78 1014 4Q1014 -65 980.0 -130.0Q946 -195 881.5 -246.0Q817 -297 723.0 -328.0Q629 -359 509 -359Q390 -359 302.5 -336.5Q215 -314 157.5 -276.5Q100 -239 72.0 -190.0Q44 -141 44 -88Q44 -19 86.0 29.0Q128 77 201 106Q162 128 139.0 163.5Q116 199 116 256Q116 302 149.5 352.5Q183 403 252 437Q173 480 127.5 550.5Q82 621 82 715Q82 792 113.5 854.0Q145 916 201.0 959.5Q257 1003 333.0 1026.0Q409 1049 498 1049ZM759 -42Q759 -15 742.0 2.0Q725 19 696.5 29.0Q668 39 629.0 43.5Q590 48 546.0 50.5Q502 53 454.5 55.0Q407 57 362 62Q327 41 305.0 12.5Q283 -16 283 -52Q283 -77 294.5 -98.0Q306 -119 333.0 -134.0Q360 -149 404.0 -157.5Q448 -166 514 -166Q582 -166 629.0 -157.0Q676 -148 705.0 -131.5Q734 -115 746.5 -92.0Q759 -69 759 -42ZM498 554Q583 554 623.5 597.0Q664 640 664 708Q664 779 623.5 819.5Q583 860 498 860Q413 860 373.0 819.5Q333 779 333 708Q333 641 373.5 597.5Q414 554 498 554Z"/>
+      <path fill="#4655CB" transform="translate(354.176 76) scale(0.032 -0.032)" d="M579 1047Q695 1047 790.0 1010.0Q885 973 953.0 904.5Q1021 836 1058.0 738.0Q1095 640 1095 517Q1095 394 1058.0 295.5Q1021 197 953.0 128.0Q885 59 790.0 22.0Q695 -15 579 -15Q462 -15 366.5 22.0Q271 59 203.0 128.0Q135 197 97.5 295.5Q60 394 60 517Q60 640 97.5 738.0Q135 836 203.0 904.5Q271 973 366.5 1010.0Q462 1047 579 1047ZM579 192Q697 192 754.0 273.5Q811 355 811 516Q811 676 754.0 757.5Q697 839 579 839Q458 839 401.0 757.5Q344 676 344 516Q344 355 401.0 273.5Q458 192 579 192Z"/>
+    </g>
+  </g>
+  <g transform="translate(1550 55)" text-anchor="end">
+    <text class="section">LINUX DESKTOP  /  C++20 + QT 6</text>
+  </g>
+  <text x="54" y="153" font-size="60" font-weight="700" letter-spacing="-1.1">Application architecture</text>
+  <text x="56" y="191" font-size="22" style="fill: #45516B">From selected or entered text to a translation, with consent checks for automatic remote requests.</text>
+  <path d="M56 224H1544" stroke="#D9E0F0"/>
+
+  <g id="application-boundary">
+    <rect x="338" y="248" width="916" height="606" rx="26" fill="#FFFFFF" stroke="#CED7EC" stroke-width="1.5"/>
+    <path d="M338 308H1254" stroke="#E1E6F4"/>
+    <circle cx="364" cy="279" r="4" fill="#5263E0"/>
+    <text x="378" y="284" class="section">SNIPLINGO APPLICATION PROCESS</text>
+  </g>
+
+  <g id="connections">
+    <path class="flow" d="M293 405H361"/>
+    <path class="flow" d="M616 388H665"/>
+    <path class="flow" d="M616 607H635V445H665"/>
+    <path class="flow" d="M928 386H977"/>
+    <path class="flow" d="M978 430H929"/>
+    <path class="flow" d="M1230 386H1296"/>
+    <path class="flow" d="M1297 430H1231"/>
+    <path class="flow" d="M796 492V698"/>
+    <path class="config" d="M616 767H652V516H726V493"/>
+    <path class="config" d="M1104 699V493"/>
+
+    <text class="annotation" x="812" y="602">Results and errors</text>
+    <text class="annotation" x="1120" y="602">API key if needed</text>
+  </g>
+
+  <g id="linux-source">
+    <text class="section" x="56" y="336">SELECTION SOURCE</text>
+    <rect x="56" y="351" width="237" height="116" rx="15" fill="#EEF1FF" stroke="#D5DDF6"/>
+    <text class="title" x="76" y="386">Source application</text>
+    <text class="body" x="76" y="419">A new text selection</text>
+    <text class="body" x="76" y="442">from a supported app</text>
+  </g>
+
+  <g id="selection-backends">
+    <rect x="362" y="333" width="254" height="159" rx="16" fill="#F0F3FF" stroke="#DCE3FA"/>
+    <text class="section" x="382" y="361">AUTOMATIC · OPT-IN</text>
+    <text class="title" x="382" y="391">Selection backends</text>
+    <text class="body" x="382" y="425">X11 / XWayland via XFixes</text>
+    <text class="body" x="382" y="450">or AT-SPI accessibility events</text>
+  </g>
+
+  <g id="request-coordinator" class="highlight">
+    <rect x="666" y="333" width="262" height="159" rx="16" fill="url(#coordinator)"/>
+    <text class="section" x="686" y="361">REQUEST LIFECYCLE</text>
+    <text class="title" x="686" y="391">Request coordinator</text>
+    <text class="body" x="686" y="423">Resolves and validates text</text>
+    <text class="body" x="686" y="447">Cancels superseded requests</text>
+    <text class="body" x="686" y="471">Checks auto-send consent</text>
+  </g>
+
+  <g id="translation-adapters">
+    <rect x="978" y="333" width="252" height="159" rx="16" fill="#EAF8F4" stroke="#C6E7DE"/>
+    <text class="section" x="998" y="361" style="fill: #226D62">TRANSLATION ENGINE</text>
+    <text class="title" x="998" y="391">Provider adapters</text>
+    <text class="body" x="998" y="423">Simple translation APIs</text>
+    <text class="body" x="998" y="447">OpenAI-compatible API</text>
+    <text class="body" x="998" y="471">Streaming when supported</text>
+  </g>
+
+  <g id="translation-service">
+    <text class="section" x="1297" y="336">CONFIGURED SERVICE</text>
+    <rect x="1297" y="351" width="247" height="116" rx="15" fill="#EDF8F5" stroke="#C6E7DE"/>
+    <text class="title" x="1317" y="386">Translation endpoint</text>
+    <text class="body" x="1317" y="419">Local or remote</text>
+    <text class="body" x="1317" y="442">Asynchronous HTTP API</text>
+  </g>
+
+  <g id="explicit-input">
+    <rect x="362" y="548" width="254" height="113" rx="16" fill="#F0F3FF" stroke="#DCE3FA"/>
+    <text class="title" x="382" y="583">Manual text input</text>
+    <text class="body" x="382" y="616">Type or paste on Home</text>
+    <text class="body" x="382" y="640">CLI text or clipboard trigger</text>
+  </g>
+
+  <g id="settings">
+    <rect x="362" y="699" width="254" height="126" rx="16" fill="#F6F8FC" stroke="#DFE5F0"/>
+    <text class="section" x="382" y="727">PREFERENCES</text>
+    <text class="title" x="382" y="756">Settings store</text>
+    <text class="body" x="382" y="786">Language, engine, consent</text>
+    <text class="body" x="382" y="809">XDG configuration on disk</text>
+  </g>
+
+  <g id="presentation">
+    <rect x="666" y="699" width="262" height="126" rx="16" fill="#F0F3FF" stroke="#DCE3FA"/>
+    <text class="section" x="686" y="727">RESULT CONTROLLER</text>
+    <text class="title" x="686" y="756">Qt Quick interface</text>
+    <text class="body" x="686" y="786">Floating result where supported</text>
+    <text class="body" x="686" y="809">Automatic results on Home*</text>
+  </g>
+
+  <g id="credential-store">
+    <rect x="978" y="699" width="252" height="126" rx="16" fill="#F6F8FC" stroke="#DFE5F0"/>
+    <text class="section" x="998" y="727">CREDENTIALS</text>
+    <text class="title" x="998" y="756">Secret store</text>
+    <text class="body" x="998" y="786">System Secret Service</text>
+    <text class="body" x="998" y="809">Session memory fallback</text>
+  </g>
+
+  <text class="annotation" x="338" y="880">* Home shows automatic results when the app cannot position a floating window near the selection.</text>
+
+  <g id="planned">
+    <rect x="56" y="915" width="700" height="44" rx="11" fill="#FFF8EA" stroke="#E5D7B7" stroke-dasharray="4 4"/>
+    <text class="section" x="73" y="942" style="fill: #79561C">PLANNED</text>
+    <text class="body" x="166" y="942" style="fill: #624B2A">User-initiated region capture and OCR</text>
+  </g>
+
+  <g id="legend">
+    <path class="flow" d="M872 937h39"/>
+    <text class="annotation" x="922" y="942">Text, requests and results</text>
+    <path class="config" d="M1130 937h39"/>
+    <text class="annotation" x="1180" y="942">Configuration or credentials</text>
+  </g>
+</svg>

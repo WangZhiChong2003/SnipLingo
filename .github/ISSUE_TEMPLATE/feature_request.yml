@@ -1,0 +1,73 @@
+name: Feature request
+description: Propose a capability or an improvement to an existing one.
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us what would make desktop translation easier on Linux. SnipLingo supports translating
+        selected or pasted text. Features should work with normal desktop permissions and explicit
+        user controls.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you unable to do today? Describe the workflow, not the implementation.
+      placeholder: I want to translate a paragraph in a scanned PDF where I cannot select text.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: How should the application behave? Include any expected interaction or shortcut.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing tools, manual workarounds, or a smaller change that would also solve it.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Text input and selection
+        - Translation providers
+        - Result window / visual design
+        - Shortcuts and desktop integration
+        - Settings and onboarding
+        - Privacy controls
+        - Packaging / distribution
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where does this matter most
+      options:
+        - Wayland (GNOME)
+        - Wayland (KDE)
+        - Wayland (wlroots: sway/Hyprland)
+        - X11
+        - All platforms
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues for this idea.
+          required: true
