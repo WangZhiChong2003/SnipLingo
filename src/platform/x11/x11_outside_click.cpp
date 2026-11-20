@@ -96,7 +96,8 @@ void OutsideClickWatcher::processEvents() {
             && pointer->win_y < geometry->height * unitsPerPixel)
             continue;
 
-        stop();
+        // Keep the subscription: the owner decides whether this press dismisses (a pinned card
+        // ignores it) and stops watching when the popup hides.
         emit clickedOutside();
     }
     if (xcb_connection_has_error(connection))

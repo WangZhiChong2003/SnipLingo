@@ -3,22 +3,39 @@ import QtQuick
 Window {
     id: root
     property var resultController: null
+    property var settingsController: null
     property bool interactive: false
     property bool automaticRequest: false
     property bool inlineResult: false
     property bool expanded: true
     property bool activatedForDismissal: false
     property bool dismissAfterLeave: false
+    property bool pinned: false
     property bool runningOnXWayland: false
+
+    // A stubbed controller in tests may not expose the scale properties; fall back to 1.0.
+    readonly property real uiScale: {
+        const value = settingsController !== null ? settingsController.uiScale : undefined
+        return value === undefined ? 1.0 : value
+    }
+    readonly property real textScale: {
+        const value = settingsController !== null ? settingsController.fontScale : undefined
+        return value === undefined ? 1.0 : value
+    }
 
     readonly property bool ready: resultController !== null
     readonly property string stateKey: resultCard.stateKey
     readonly property bool hasResult: resultCard.hasResult
     // XWayland cannot see clicks on native Wayland windows. A card that actually has focus can
-    // still be dismissed when the compositor focuses the clicked window.
-    readonly property bool showingCard: expanded && (!runningOnXWayland || active)
+    // still be dismissed when the compositor focuses the clicked window. A pinned card stays
+    // expanded regardless of focus.
+    readonly property bool showingCard: expanded && (pinned || !runningOnXWayland || active)
 
     Theme { id: theme }
+
+    function togglePinned() {
+        pinned = !pinned;
+    }
 
     function activateForInteraction() {
         if (!visible || !expanded)
@@ -58,6 +75,7 @@ Window {
             dismissAfterLeave = false;
             activatedForDismissal = false;
             interactive = false;
+            pinned = false;
         } else {
             Qt.callLater(root.activateForPresentation);
         }
@@ -66,15 +84,16 @@ Window {
     onActiveChanged: {
         if (active && interactive && expanded) {
             activatedForDismissal = true;
-        } else if (!active && activatedForDismissal && visible && expanded && ready) {
+        } else if (!active && activatedForDismissal && visible && expanded && ready && !pinned) {
+            // Pinning outlives focus changes; unpinning re-arms dismissal for the next one.
             activatedForDismissal = false;
             resultController.dismissOnFocusLoss();
         }
     }
 
     color: "transparent"
-    width: showingCard ? 440 : selectionButton.implicitWidth
-    height: showingCard ? resultCard.implicitHeight : selectionButton.implicitHeight
+    width: (showingCard ? 440 : selectionButton.implicitWidth) * uiScale
+    height: (showingCard ? resultCard.implicitHeight : selectionButton.implicitHeight) * uiScale
 
     Shortcut {
         sequence: "Escape"
@@ -84,12 +103,23 @@ Window {
 
     Timer {
         interval: 350
-        running: root.visible && root.showingCard && root.dismissAfterLeave && !rootHover.hovered
+        // Only the XWayland card is dismissed by the pointer: it cannot see clicks on native
+        // Wayland windows. Plain X11 closes through the outside-click watcher instead, so the
+        // card stays readable while the pointer moves within or away from it. A pinned card is
+        // never closed by the pointer.
+        running: root.visible && root.showingCard && root.dismissAfterLeave && root.runningOnXWayland
+                 && !root.pinned && !rootHover.hovered
         onTriggered: root.resultController.dismissOnFocusLoss()
     }
 
+    // The card lays out in logical pixels and scales up to the window, so every control and all
+    // text zoom together. Overlay popups (tooltips) read the factor through the card.
     Item {
-        anchors.fill: parent
+        id: zoomLayer
+        objectName: "zoomLayer"
+        width: root.width / root.uiScale
+        height: root.height / root.uiScale
+        transform: Scale { xScale: root.uiScale; yScale: root.uiScale }
 
         HoverHandler {
             id: rootHover
@@ -120,7 +150,12 @@ Window {
             colors: theme
             controller: root.resultController
             visible: root.showingCard
+            pinVisible: true
+            pinned: root.pinned
+            textScale: root.textScale
+            zoom: root.uiScale
             onInteractionRequested: root.activateForInteraction()
+            onPinRequested: root.togglePinned()
         }
     }
 }

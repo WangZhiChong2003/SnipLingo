@@ -8,6 +8,9 @@ Basic.ComboBox {
 
     required property var colors
     property var formatOption: function(value) { return value; }
+    // The control itself scales with the window content layer that contains it; its popup lives
+    // on the overlay, so it needs the same factor applied explicitly.
+    property real zoom: 1.0
 
     implicitHeight: 40
     leftPadding: 12
@@ -90,6 +93,8 @@ Basic.ComboBox {
         width: control.width
         padding: 6
         margins: 8
+        scale: control.zoom
+        transformOrigin: Item.TopLeft
         implicitHeight: Math.min(contentItem.implicitHeight + topPadding + bottomPadding, 280)
         contentItem: ListView {
             clip: true

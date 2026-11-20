@@ -79,9 +79,16 @@ void X11OutsideClickLiveTest::outsidePressDismissesAndReachesItsTarget() {
     QTRY_COMPARE(dismissed.count(), 1);
     QTRY_COMPARE(outside.presses, 1);
 
+    // The watcher stays armed: its owner stops it when the popup hides, and a pinned popup needs
+    // the press that follows unpinning.
     click(outside);
     QTRY_COMPARE(outside.presses, 2);
-    QCOMPARE(dismissed.count(), 1);
+    QTRY_COMPARE(dismissed.count(), 2);
+
+    watcher.stop();
+    click(outside);
+    QTRY_COMPARE(outside.presses, 3);
+    QCOMPARE(dismissed.count(), 2);
 }
 
 int main(int argc, char **argv) {

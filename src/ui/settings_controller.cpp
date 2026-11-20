@@ -103,6 +103,14 @@ bool SettingsController::popupRestartRequired() const {
     return m_initialXwaylandPopup != xwaylandPopupEnabled();
 }
 
+qreal SettingsController::uiScale() const {
+    return m_store->current().ui.scale;
+}
+
+qreal SettingsController::fontScale() const {
+    return m_store->current().ui.fontScale;
+}
+
 bool SettingsController::observationActive() const {
     return m_coordinator != nullptr && m_coordinator->observationActive();
 }
@@ -304,6 +312,23 @@ QVariantMap SettingsController::setXwaylandPopup(bool enabled) {
     next.selection.xwaylandPopup = enabled;
     const core::Result<void> result = m_store->save(next);
     return result.ok() ? success() : failure(result.error());
+}
+
+void SettingsController::setUiScale(qreal scale) {
+    settings::Settings next = m_store->current();
+    next.ui.scale = scale;
+    // The store clamps to the supported range; the applied value follows the validated one.
+    const core::Result<void> result = m_store->save(next);
+    if (!result.ok())
+        reportError(result.error());
+}
+
+void SettingsController::setFontScale(qreal scale) {
+    settings::Settings next = m_store->current();
+    next.ui.fontScale = scale;
+    const core::Result<void> result = m_store->save(next);
+    if (!result.ok())
+        reportError(result.error());
 }
 
 void SettingsController::setSelectionBackend(const QString &backend) {

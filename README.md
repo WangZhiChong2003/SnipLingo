@@ -26,7 +26,7 @@ On Ubuntu 24.04, install the build tools, Qt runtime and selection backend depen
 sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev \
   qt6-wayland qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
-  libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
+  libqt6svg6 libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
 ```
 
 Build and run from the source directory.
@@ -38,7 +38,8 @@ cmake --build build/release --parallel "$(nproc --ignore=2)"
 ```
 
 Other distributions need a C++20 compiler, CMake 3.21+ and Qt 6.4+ with Widgets and the QML modules
-listed above. The AT-SPI and X11 development packages enable automatic selection support for those backends.
+listed above, plus the Qt SVG library whose image-format plugin renders the result-card icons. The
+AT-SPI and X11 development packages enable automatic selection support for those backends.
 
 ## Translate your first text
 

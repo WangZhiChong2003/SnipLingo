@@ -64,92 +64,7 @@ Window {
         }
     }
     component InputField: AppTextField { colors: theme }
-    component LanguageCombo: AppComboBox { colors: theme }
-    component WindowButton: Item {
-        id: button
-        required property var colors
-        property int kind: 0  // 0 minimize, 1 maximize/restore, 2 close
-        property bool maximized: false
-        signal clicked()
-
-        implicitWidth: 34
-        implicitHeight: 30
-        Accessible.role: Accessible.Button
-        Accessible.name: kind === 0 ? qsTr("Minimize")
-                       : kind === 1 ? qsTr("Maximize")
-                       : qsTr("Close")
-
-        Rectangle {
-            anchors.fill: parent
-            radius: 8
-            color: {
-                if (button.kind === 2 && mouse.containsMouse)
-                    return button.colors.errorSoft;
-                return mouse.containsMouse || mouse.pressed
-                       ? button.colors.surfaceElevated : "transparent";
-            }
-        }
-        Item {
-            anchors.centerIn: parent
-            width: 12; height: 12
-            Rectangle {
-                visible: button.kind === 0
-                width: 10; height: 1.5; radius: 0.75
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 2
-                color: button.colors.textSecondary
-            }
-            Item {
-                visible: button.kind === 1
-                anchors.fill: parent
-                Rectangle {
-                    visible: !button.maximized
-                    anchors.centerIn: parent
-                    width: 9; height: 9; radius: 1
-                    color: "transparent"
-                    border.width: 1.5
-                    border.color: button.colors.textSecondary
-                }
-                Rectangle {
-                    visible: button.maximized
-                    x: 4; y: 1; width: 7; height: 7; radius: 1
-                    color: "transparent"
-                    border.width: 1.5
-                    border.color: button.colors.textSecondary
-                }
-                Rectangle {
-                    visible: button.maximized
-                    x: 1; y: 4; width: 7; height: 7; radius: 1
-                    color: "transparent"
-                    border.width: 1.5
-                    border.color: button.colors.textSecondary
-                }
-            }
-            Item {
-                visible: button.kind === 2
-                anchors.fill: parent
-                Rectangle {
-                    width: 11; height: 1.5; radius: 0.75
-                    anchors.centerIn: parent
-                    rotation: 45
-                    color: mouse.containsMouse ? button.colors.error : button.colors.textSecondary
-                }
-                Rectangle {
-                    width: 11; height: 1.5; radius: 0.75
-                    anchors.centerIn: parent
-                    rotation: -45
-                    color: mouse.containsMouse ? button.colors.error : button.colors.textSecondary
-                }
-            }
-        }
-        MouseArea {
-            id: mouse
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: button.clicked()
-        }
-    }
+    component LanguageCombo: AppComboBox { colors: theme; zoom: root.uiScale }
     component ResizeHandle: MouseArea {
         required property int edges
         acceptedButtons: Qt.LeftButton
@@ -158,6 +73,25 @@ Window {
     }
 
     readonly property bool ready: settingsController !== null
+    // A stubbed controller in tests may not expose the scale properties; fall back to 1.0.
+    readonly property real uiScale: {
+        const value = ready ? settingsController.uiScale : undefined
+        return value === undefined ? 1.0 : value
+    }
+    readonly property real textScale: {
+        const value = ready ? settingsController.fontScale : undefined
+        return value === undefined ? 1.0 : value
+    }
+
+    // The interface choosers offer fixed steps; map a stored value onto the closest listed option.
+    function nearestListedIndex(value, listed) {
+        let best = 0
+        for (let i = 1; i < listed.length; ++i) {
+            if (Math.abs(listed[i] - value) < Math.abs(listed[best] - value))
+                best = i
+        }
+        return best
+    }
     readonly property var providers: ready ? settingsController.providers : []
     readonly property var activeProvider: {
         for (let i = 0; i < providers.length; ++i) {
@@ -258,10 +192,10 @@ Window {
     }
 
     title: qsTr("SnipLingo")
-    width: 870
-    height: 650
-    minimumWidth: 620
-    minimumHeight: 480
+    width: Math.round(870 * uiScale)
+    height: Math.round(650 * uiScale)
+    minimumWidth: Math.round(620 * uiScale)
+    minimumHeight: Math.round(480 * uiScale)
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "transparent"
     onClosing: Qt.quit()
@@ -285,7 +219,11 @@ Window {
     Rectangle {
         id: windowFrame
         objectName: "windowFrame"
-        anchors.fill: parent
+        // Lay the interface out in logical pixels and scale it up to the window: the frameless
+        // chrome, every control and all text zoom together.
+        width: root.width / root.uiScale
+        height: root.height / root.uiScale
+        transform: Scale { xScale: root.uiScale; yScale: root.uiScale }
         radius: 10
         color: theme.background
         border.width: 1
@@ -413,6 +351,7 @@ Window {
                 model: [
                     { section: "engines", label: qsTr("Engines") },
                     { section: "selection", label: qsTr("Selection") },
+                    { section: "interface", label: qsTr("Interface") },
                     { section: "network", label: qsTr("Network") },
                     { section: "about", label: qsTr("About") }
                 ]
@@ -586,6 +525,7 @@ Window {
                                 visible: root.inlineResultVisible
                                 colors: theme
                                 controller: root.resultController
+                                textScale: root.textScale
                             }
                         }
                     }
@@ -1033,6 +973,86 @@ Window {
                 }
             }
             Rectangle {
+                visible: root.showPreferences && root.settingsSection === "interface"
+                Layout.fillWidth: true
+                Layout.leftMargin: 24; Layout.rightMargin: 24
+                implicitHeight: interfaceColumn.implicitHeight + 2 * theme.padding
+                radius: theme.radiusWindow; color: theme.surface; border.color: theme.border
+                ColumnLayout {
+                    id: interfaceColumn
+                    anchors.fill: parent; anchors.margins: theme.padding
+                    spacing: 8
+                    Text { text: qsTr("Interface"); color: theme.textPrimary; font.pixelSize: 18; font.bold: true }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Adjust how large the interface and the result text appear. Changes apply immediately.")
+                        color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: qsTr("Interface zoom")
+                            color: theme.textPrimary; font.pixelSize: theme.fontOriginal
+                        }
+                        Item { Layout.fillWidth: true }
+                        LanguageCombo {
+                            objectName: "uiScaleCombo"
+                            enabled: root.ready
+                            Layout.preferredWidth: 250
+                            textRole: "name"; valueRole: "code"
+                            model: [
+                                { code: 0.75, name: "75%" },
+                                { code: 1.0, name: "100%" },
+                                { code: 1.25, name: "125%" },
+                                { code: 1.5, name: "150%" }
+                            ]
+                            currentIndex: root.nearestListedIndex(root.uiScale, [0.75, 1.0, 1.25, 1.5])
+                            onActivated: if (root.ready) root.settingsController.setUiScale(currentValue)
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Scales the whole main window and the floating result. The floating result follows the new size with the next selection.")
+                        color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: qsTr("Translation text size")
+                            color: theme.textPrimary; font.pixelSize: theme.fontOriginal
+                        }
+                        Item { Layout.fillWidth: true }
+                        // The sizes are the translation text's pixel height; they are stored as a
+                        // multiplier of the 18 px base that ResultCard renders.
+                        LanguageCombo {
+                            objectName: "textScaleCombo"
+                            enabled: root.ready
+                            Layout.preferredWidth: 250
+                            textRole: "name"; valueRole: "code"
+                            model: [
+                                { code: 14 / 18, name: "14 px" },
+                                { code: 16 / 18, name: "16 px" },
+                                { code: 1.0, name: "18 px" },
+                                { code: 20 / 18, name: "20 px" },
+                                { code: 22 / 18, name: "22 px" },
+                                { code: 24 / 18, name: "24 px" },
+                                { code: 26 / 18, name: "26 px" },
+                                { code: 28 / 18, name: "28 px" },
+                                { code: 30 / 18, name: "30 px" }
+                            ]
+                            currentIndex: root.nearestListedIndex(
+                                18 * root.textScale, [14, 16, 18, 20, 22, 24, 26, 28, 30])
+                            onActivated: if (root.ready) root.settingsController.setFontScale(currentValue)
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Sets the translation text size. The original text follows at a proportionally smaller size.")
+                        color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
+                    }
+                }
+            }
+            Rectangle {
                 visible: root.showPreferences && root.settingsSection === "network"
                 Layout.fillWidth: true
                 Layout.leftMargin: 24; Layout.rightMargin: 24
@@ -1137,8 +1157,11 @@ Window {
         objectName: "consentDialog"
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: Math.min(500, root.width - 48)
-        height: Math.min(implicitHeight, root.height - 48)
+        // The sheet lives on the overlay, outside the window's scaled content layer: scale it to
+        // match and clamp its logical size against the scaled window.
+        scale: root.uiScale
+        width: Math.min(500, root.width / root.uiScale - 48)
+        height: Math.min(implicitHeight, root.height / root.uiScale - 48)
         controller: root.settingsController
         destination: root.ready ? root.settingsController.consentDestination : ""
     }

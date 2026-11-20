@@ -187,6 +187,7 @@ QJsonObject toJson(const Settings &settings) {
 
     QJsonObject ui;
     ui[QStringLiteral("theme")] = settings.ui.theme;
+    ui[QStringLiteral("scale")] = settings.ui.scale;
     ui[QStringLiteral("fontScale")] = settings.ui.fontScale;
     ui[QStringLiteral("reduceMotion")] = settings.ui.reduceMotion;
 
@@ -281,6 +282,11 @@ bool validate(Settings &settings, QStringList *issues) {
     if (!settings.provider.activeId.isEmpty() && !keptIds.contains(settings.provider.activeId))
         settings.provider.activeId.clear();
 
+    if (settings.ui.scale < 0.75 || settings.ui.scale > 1.5) {
+        settings.ui.scale = std::clamp(settings.ui.scale, 0.75, 1.5);
+        if (issues)
+            issues->append(QStringLiteral("ui.scale"));
+    }
     if (settings.ui.fontScale < 0.75 || settings.ui.fontScale > 1.75) {
         settings.ui.fontScale = std::clamp(settings.ui.fontScale, 0.75, 1.75);
         if (issues)
@@ -397,6 +403,7 @@ LoadResult loadFromDocument(const QJsonObject &document, bool documentWasReadabl
 
     const QJsonObject ui = document.value(QStringLiteral("ui")).toObject();
     settings.ui.theme = ui.value(QStringLiteral("theme")).toString(settings.ui.theme);
+    settings.ui.scale = ui.value(QStringLiteral("scale")).toDouble(settings.ui.scale);
     settings.ui.fontScale = ui.value(QStringLiteral("fontScale")).toDouble(settings.ui.fontScale);
     settings.ui.reduceMotion
         = ui.value(QStringLiteral("reduceMotion")).toBool(settings.ui.reduceMotion);

@@ -98,6 +98,11 @@ foreach(ui_test IN ITEMS ui_qml_load_test ui_settings_qml_test)
         PREFIX "/branding"
         BASE "${CMAKE_SOURCE_DIR}/assets/branding"
         FILES "${CMAKE_SOURCE_DIR}/assets/branding/sniplingo-icon.png")
+    qt_add_resources(${ui_test} "test_icons"
+        PREFIX "/icons"
+        BASE "${CMAKE_SOURCE_DIR}/assets/icons"
+        FILES "${CMAKE_SOURCE_DIR}/assets/icons/pin.svg"
+              "${CMAKE_SOURCE_DIR}/assets/icons/pin-filled.svg")
 endforeach()
 set_tests_properties(ui_qml_load_test PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

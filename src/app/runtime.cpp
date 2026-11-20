@@ -194,6 +194,7 @@ void Application::loadWindows() {
         return;
     }
     result->setProperty("resultController", QVariant::fromValue(resultController.get()));
+    result->setProperty("settingsController", QVariant::fromValue(settingsController.get()));
     result->setProperty(
         "runningOnXWayland", canPositionResultWindow() && settingsController->waylandSession());
     resultWindow = result;
@@ -213,9 +214,14 @@ void Application::loadWindows() {
             if (visible) {
                 if (!outsideClickWatcher) {
                     outsideClickWatcher = std::make_unique<platform::x11::OutsideClickWatcher>();
+                    // A pinned card outlives outside clicks; the watcher keeps listening so the
+                    // click after unpinning still closes it.
                     QObject::connect(outsideClickWatcher.get(),
-                        &platform::x11::OutsideClickWatcher::clickedOutside, resultController.get(),
-                        &ui::ResultController::dismissOnFocusLoss);
+                        &platform::x11::OutsideClickWatcher::clickedOutside, window,
+                        [this, window] {
+                            if (!window->property("pinned").toBool())
+                                resultController->dismissOnFocusLoss();
+                        });
                 }
                 outsideClickWatcher->watch(window);
             } else if (outsideClickWatcher) {
@@ -233,6 +239,10 @@ void Application::loadWindows() {
             resultAnchor = automatic && anchor.isValid() && automaticPopupAvailable()
                 ? logicalAnchor(anchor, x11Pointer)
                 : QRect();
+            // A pinned card stays expanded, interactive and in place; presentations only change
+            // its text through the controller. Unpinning lets the next presentation take over.
+            if (result->property("pinned").toBool())
+                return;
             const bool inlineResult = origin == coordinator::Origin::ExplicitPaste
                 || (automatic
                     && (!resultAnchor.isValid()
@@ -294,6 +304,9 @@ void Application::showSettings() {
 
 void Application::showResult() {
     if (!canPositionResultWindow() || resultWindow->property("inlineResult").toBool())
+        return;
+    // A pinned card keeps the user's placement; new content only resizes it in place.
+    if (resultWindow->property("pinned").toBool())
         return;
     if (auto *window = qobject_cast<QWindow *>(resultWindow)) {
         const QPoint anchor = automaticPresentation ? resultAnchor.center() : QCursor::pos();

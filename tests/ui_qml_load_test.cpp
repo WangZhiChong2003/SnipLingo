@@ -2,10 +2,12 @@
 // bindings must follow the controller. This is the cheap half of QML verification; layout still
 // needs a real session.
 #include <QDir>
+#include <QFont>
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QWindow>
 #include <QtTest>
@@ -25,6 +27,8 @@ class StubController : public QObject {
     Q_PROPERTY(bool canRetry MEMBER m_canRetry NOTIFY changed)
     Q_PROPERTY(bool originalVisible MEMBER m_originalVisible NOTIFY changed)
     Q_PROPERTY(bool originalCollapsed MEMBER m_originalCollapsed NOTIFY changed)
+    Q_PROPERTY(qreal uiScale MEMBER m_uiScale NOTIFY changed)
+    Q_PROPERTY(qreal fontScale MEMBER m_fontScale NOTIFY changed)
 
 public:
     bool m_visible = false;
@@ -38,6 +42,8 @@ public:
     bool m_canRetry = false;
     bool m_originalVisible = false;
     bool m_originalCollapsed = true;
+    qreal m_uiScale = 1.0;
+    qreal m_fontScale = 1.0;
 
 public slots:
 
@@ -78,6 +84,8 @@ private slots:
     void directAutomaticResultUsesPlatformFocusPolicy();
     void inlineResultUsesTheHomeCard();
     void expandedResultDismissesWhenAnotherWindowActivates();
+    void pinnedCardSurvivesFocusLossAndPointerLeave();
+    void resultWindowScalesWithInterfaceSettings();
 };
 
 void UiQmlLoadTest::resultWindowCompilesAndFollowsTheController() {
@@ -114,10 +122,17 @@ void UiQmlLoadTest::resultWindowCompilesAndFollowsTheController() {
     QTRY_VERIFY(window->property("interactive").toBool());
     controller.m_translatedText = QString(800, QChar(0x4f60));
     emit controller.changed();
-    QCOMPARE(window->property("height").toInt(), compactHeight);
+    // The card grows with long text, but only up to the capped text area; beyond it, the text
+    // scrolls inside the card. Layout propagation is asynchronous, so poll for the new height.
+    QTRY_VERIFY(window->property("height").toInt() > compactHeight);
+    const int grownHeight = window->property("height").toInt();
+    QVERIFY(grownHeight <= compactHeight + 280);
     const QObject *text = window->findChild<QObject *>(QStringLiteral("translatedText"));
     QVERIFY(text);
-    QVERIFY(text->property("contentHeight").toReal() > compactHeight);
+    QVERIFY(text->property("contentHeight").toReal() > grownHeight);
+    QVERIFY(qobject_cast<QQuickWindow *>(window.get())
+                ->grabWindow()
+                .save(QDir::tempPath() + QStringLiteral("/sniplyngo-result-window-grown.png")));
 
     controller.m_stateKey = QStringLiteral("error");
     controller.m_errorKey = QStringLiteral("ProviderRateLimited");
@@ -143,7 +158,7 @@ void UiQmlLoadTest::resultWindowHandlesAMissingController() {
 
 void UiQmlLoadTest::selectionButtonRevealsOnHover_data() {
     QTest::addColumn<bool>("xwayland");
-    QTest::newRow("pointer-leave") << false;
+    QTest::newRow("x11-card-stays-on-pointer-leave") << false;
     QTest::newRow("xwayland-focus-loss") << true;
 }
 
@@ -195,9 +210,13 @@ void UiQmlLoadTest::selectionButtonRevealsOnHover() {
         QTRY_COMPARE_WITH_TIMEOUT(controller.dismissCalls, 1, 1000);
         QTRY_VERIFY_WITH_TIMEOUT(!object->property("showingCard").toBool(), 1000);
     } else {
+        // Plain X11 closes the card on an outside click, never because the pointer left it.
+        // The click path itself needs a real X server; see x11_outside_click_live_test.
         QEvent leave(QEvent::Leave);
         QCoreApplication::sendEvent(window, &leave);
-        QTRY_COMPARE(controller.dismissCalls, 1);
+        QTest::qWait(500);
+        QCOMPARE(controller.dismissCalls, 0);
+        QVERIFY(object->property("showingCard").toBool());
     }
 }
 
@@ -283,6 +302,10 @@ void UiQmlLoadTest::inlineResultUsesTheHomeCard() {
     QVERIFY(!card->property("visible").toBool());
     window->setProperty("showResultInline", true);
     QTRY_VERIFY(card->property("visible").toBool());
+    // Pinning is a floating-result affordance; the inline card must not offer it.
+    QObject *pin = card->findChild<QObject *>(QStringLiteral("pinButton"));
+    QVERIFY(pin);
+    QVERIFY(!pin->property("visible").toBool());
     QCOMPARE(
         card->findChild<QObject *>(QStringLiteral("translatedText"))->property("text").toString(),
         controller.m_translatedText);
@@ -317,6 +340,100 @@ void UiQmlLoadTest::expandedResultDismissesWhenAnotherWindowActivates() {
     other.show();
     other.requestActivate();
     QTRY_COMPARE(controller.dismissCalls, 1);
+}
+
+void UiQmlLoadTest::pinnedCardSurvivesFocusLossAndPointerLeave() {
+    QQmlEngine engine;
+    StubController controller;
+    controller.m_stateKey = QStringLiteral("done");
+    controller.m_translatedText = QStringLiteral("你好");
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ResultWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> object(component.create());
+    QVERIFY2(object, qPrintable(component.errorString()));
+    object->setProperty("resultController", QVariant::fromValue(&controller));
+    object->setProperty("automaticRequest", true);
+    object->setProperty("runningOnXWayland", true);
+    object->setProperty("expanded", true);
+    controller.m_visible = true;
+    emit controller.changed();
+    auto *window = qobject_cast<QQuickWindow *>(object.get());
+    QVERIFY(window != nullptr);
+    QTRY_VERIFY(object->property("showingCard").toBool());
+
+    // Pin through the real button so the toggle wiring is exercised.
+    auto *pin
+        = qobject_cast<QQuickItem *>(window->findChild<QObject *>(QStringLiteral("pinButton")));
+    QVERIFY(pin != nullptr);
+    QVERIFY(pin->property("visible").toBool());
+    QCOMPARE(pin->property("iconSource").toString(), QStringLiteral("qrc:/icons/pin.svg"));
+    auto clickPin = [&]() {
+        const QPointF center = pin->mapToScene(QPointF(pin->width() / 2, pin->height() / 2));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, center.toPoint());
+    };
+    clickPin();
+    QTRY_VERIFY(object->property("pinned").toBool());
+    QCOMPARE(pin->property("iconSource").toString(), QStringLiteral("qrc:/icons/pin-filled.svg"));
+    QVERIFY(
+        window->grabWindow().save(QDir::tempPath() + QStringLiteral("/sniplyngo-pin-active.png")));
+    // The pin click is an interaction: the window takes focus and arms focus-loss dismissal.
+    QTRY_VERIFY(object->property("activatedForDismissal").toBool());
+
+    // A pinned card survives the pointer leaving it and another window taking focus.
+    QWindow other;
+    other.setGeometry(20, 20, 120, 80);
+    other.show();
+    other.requestActivate();
+    QTRY_VERIFY(!window->isActive());
+    QEvent leave(QEvent::Leave);
+    QCoreApplication::sendEvent(window, &leave);
+    QTest::qWait(500);
+    QCOMPARE(controller.dismissCalls, 0);
+    QVERIFY(object->property("showingCard").toBool());
+
+    // Unpinning re-arms dismissal for the next focus loss.
+    clickPin();
+    QTRY_VERIFY(!object->property("pinned").toBool());
+    QTRY_VERIFY(window->isActive());
+    other.requestActivate();
+    QTRY_COMPARE(controller.dismissCalls, 1);
+}
+
+void UiQmlLoadTest::resultWindowScalesWithInterfaceSettings() {
+    QQmlEngine engine;
+    StubController controller;
+    controller.m_stateKey = QStringLiteral("done");
+    controller.m_translatedText = QStringLiteral("你好");
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ResultWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> object(component.create());
+    QVERIFY2(object, qPrintable(component.errorString()));
+    object->setProperty("resultController", QVariant::fromValue(&controller));
+    object->setProperty("settingsController", QVariant::fromValue(&controller));
+    object->setProperty("automaticRequest", true);
+    object->setProperty("expanded", true);
+    controller.m_visible = true;
+    emit controller.changed();
+    auto *window = qobject_cast<QQuickWindow *>(object.get());
+    QVERIFY(window != nullptr);
+    QTRY_COMPARE(window->width(), 440);
+
+    // Interface zoom scales the window while the content layer keeps logical pixels.
+    controller.m_uiScale = 1.25;
+    emit controller.changed();
+    QTRY_COMPARE(window->width(), 550);
+    auto *zoomLayer = window->findChild<QQuickItem *>(QStringLiteral("zoomLayer"));
+    QVERIFY(zoomLayer != nullptr);
+    QCOMPARE(zoomLayer->width(), 440.0);
+
+    // The text size applies to the translated text on top of the zoom.
+    controller.m_fontScale = 1.5;
+    emit controller.changed();
+    const QObject *text = window->findChild<QObject *>(QStringLiteral("translatedText"));
+    QVERIFY(text != nullptr);
+    QTRY_COMPARE(text->property("font").value<QFont>().pixelSize(), qRound(18 * 1.5));
 }
 
 QTEST_MAIN(UiQmlLoadTest)

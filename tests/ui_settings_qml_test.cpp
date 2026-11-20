@@ -65,6 +65,8 @@ class StubSettings : public QObject {
     Q_PROPERTY(QString proxyMode MEMBER m_proxyMode NOTIFY changed)
     Q_PROPERTY(QString proxyUrl MEMBER m_proxyUrl NOTIFY changed)
     Q_PROPERTY(QString proxyEffective MEMBER m_proxyEffective NOTIFY changed)
+    Q_PROPERTY(qreal uiScale MEMBER m_uiScale NOTIFY changed)
+    Q_PROPERTY(qreal fontScale MEMBER m_fontScale NOTIFY changed)
 
 public:
     bool m_automaticEnabled = false;
@@ -96,6 +98,8 @@ public:
     QString m_proxyEffective = QStringLiteral("system (no proxy variable set)");
     QString m_submittedText;
     QString m_addedPreset;
+    qreal m_uiScale = 1.0;
+    qreal m_fontScale = 1.0;
 
 public slots:
 
@@ -106,6 +110,16 @@ public slots:
 
     void setPaused(bool value) {
         m_paused = value;
+        emit changed();
+    }
+
+    void setUiScale(qreal value) {
+        m_uiScale = value;
+        emit changed();
+    }
+
+    void setFontScale(qreal value) {
+        m_fontScale = value;
         emit changed();
     }
 
@@ -212,6 +226,7 @@ private slots:
     void darkPaletteKeepsDialogReadable();
     void hideKeepsAutomaticSetting();
     void selectionDisplaySettingFollowsController();
+    void interfaceScaleChoosersFollowAndApplyTheController();
     void xwaylandPopupToggleExplainsRestart();
     void explainsInlineResultsWhenPlacementIsUnavailable();
     void homeExposesSelectionStatusAndTest();
@@ -281,6 +296,52 @@ void UiSettingsQmlTest::selectionDisplaySettingFollowsController() {
     QVERIFY(!toggle->property("checked").toBool());
     controller.setShowResultImmediately(true);
     QTRY_VERIFY(toggle->property("checked").toBool());
+}
+
+void UiSettingsQmlTest::interfaceScaleChoosersFollowAndApplyTheController() {
+    QQmlEngine engine;
+    StubSettings controller;
+    controller.m_uiScale = 1.25;
+    controller.m_fontScale = 1.4;
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/SettingsWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> window(component.create());
+    QVERIFY2(window, qPrintable(component.errorString()));
+    window->setProperty("settingsController", QVariant::fromValue(&controller));
+    window->setProperty("showPreferences", true);
+    window->setProperty("settingsSection", QStringLiteral("interface"));
+    auto *quickWindow = qobject_cast<QQuickWindow *>(window.get());
+    QVERIFY(quickWindow != nullptr);
+    quickWindow->show();
+
+    // Window defaults follow the zoom factor.
+    QCOMPARE(window->property("width").toInt(), 1088);  // Math.round(870 * 1.25)
+    QCOMPARE(window->property("minimumWidth").toInt(), 775);
+
+    auto *zoomCombo = window->findChild<QQuickItem *>(QStringLiteral("uiScaleCombo"));
+    auto *textCombo = window->findChild<QQuickItem *>(QStringLiteral("textScaleCombo"));
+    QVERIFY(zoomCombo != nullptr);
+    QVERIFY(textCombo != nullptr);
+    QVERIFY(zoomCombo->isVisible());
+    QVERIFY(textCombo->isVisible());
+    QCOMPARE(zoomCombo->property("currentIndex").toInt(), 2);  // 125%
+    QCOMPARE(textCombo->property("currentIndex").toInt(), 6);  // 18 * 1.4 = 25.2 -> "26 px"
+
+    // Selecting an option applies immediately through the controller.
+    QObject *popup = zoomCombo->property("popup").value<QObject *>();
+    QVERIFY(popup != nullptr);
+    zoomCombo->forceActiveFocus(Qt::TabFocusReason);
+    QTRY_VERIFY(zoomCombo->hasActiveFocus());
+    QTest::keyClick(quickWindow, Qt::Key_Space);
+    QTRY_VERIFY(popup->property("visible").toBool());
+    QTest::keyClick(quickWindow, Qt::Key_Down);
+    QTest::keyClick(quickWindow, Qt::Key_Return);
+    QTRY_COMPARE(controller.m_uiScale, 1.5);
+    QTRY_COMPARE(window->property("width").toInt(), 1305);  // Math.round(870 * 1.5)
+    QTRY_VERIFY(zoomCombo->property("currentIndex").toInt() == 3);
+    QVERIFY(quickWindow->grabWindow().save(
+        QDir::tempPath() + QStringLiteral("/sniplyngo-settings-zoom.png")));
 }
 
 void UiSettingsQmlTest::xwaylandPopupToggleExplainsRestart() {

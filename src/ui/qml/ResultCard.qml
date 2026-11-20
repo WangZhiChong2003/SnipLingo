@@ -7,14 +7,32 @@ Rectangle {
     id: card
     required property var colors
     required property var controller
+    // Pinning belongs to the floating result window; the inline card in the main window never
+    // offers it.
+    property bool pinVisible: false
+    property bool pinned: false
+    // Translation and original text multiplier, and the interface zoom for overlay popups that
+    // live outside the scaled window layer.
+    property real textScale: 1.0
+    property real zoom: 1.0
     signal interactionRequested
+    signal pinRequested
 
     readonly property string stateKey: controller === null ? "hidden" : controller.stateKey
     readonly property bool hasResult: stateKey === "streaming" || stateKey === "done"
     readonly property bool showsOriginal: controller !== null && controller.originalVisible
                                           && !controller.originalCollapsed
+    // The card follows its content: the text area grows with the translated text, and the scroll
+    // view takes over once it would cover half the screen. The floating window is repositioned
+    // (and clamped to the screen) whenever its height changes.
+    readonly property real maxTextHeight: {
+        const available = Screen.availableHeight
+        return Math.min(320, available > 0 ? available * 0.5 : 320)
+    }
 
-    implicitHeight: showsOriginal ? 276 : 204
+    // The column's implicit height does not include its anchor margins; add them back so the
+    // floating window sizes itself to the content plus its padding.
+    implicitHeight: contentLayout.implicitHeight + contentLayout.anchors.margins * 2
     radius: colors.radiusWindow
     color: colors.surface
     border.color: colors.border
@@ -41,6 +59,7 @@ Rectangle {
     }
 
     ColumnLayout {
+        id: contentLayout
         anchors.fill: parent
         anchors.margins: 14
         spacing: 7
@@ -69,6 +88,7 @@ Rectangle {
                     text: card.controller === null ? "" : card.controller.providerLabel
                     delay: 600
                     width: Math.min(implicitWidth, card.width - 28)
+                    scale: card.zoom
                     contentItem: Text {
                         text: destinationTip.text
                         textFormat: Text.PlainText
@@ -83,9 +103,38 @@ Rectangle {
                 }
             }
             CardButton {
-                text: "×"
+                objectName: "pinButton"
+                visible: card.pinVisible
+                iconSource: card.pinned ? "qrc:/icons/pin-filled.svg" : "qrc:/icons/pin.svg"
                 flat: true
-                Accessible.name: qsTr("Close translation")
+                Accessible.name: card.pinned ? qsTr("Unpin the translation")
+                                             : qsTr("Keep the translation on screen")
+                HoverHandler { id: pinHover }
+                ToolTip {
+                    id: pinTip
+                    visible: pinHover.hovered
+                    text: card.pinned ? qsTr("Unpin") : qsTr("Pin translation")
+                    delay: 600
+                    scale: card.zoom
+                    contentItem: Text {
+                        text: pinTip.text
+                        textFormat: Text.PlainText
+                        color: card.colors.textPrimary
+                    }
+                    background: Rectangle {
+                        radius: card.colors.radiusControl
+                        color: card.colors.surfaceElevated
+                        border.color: card.colors.border
+                    }
+                }
+                onClicked: {
+                    card.interactionRequested();
+                    card.pinRequested();
+                }
+            }
+            WindowButton {
+                kind: 2
+                colors: card.colors
                 onClicked: card.controller.dismiss()
             }
         }
@@ -97,6 +146,10 @@ Rectangle {
             colors: card.colors
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // Natural text height, floored at one line and capped at the screen-relative maximum;
+            // the column's implicit height grows from this so the window follows the content.
+            Layout.preferredHeight: Math.max(
+                40, Math.min(translationText.implicitHeight, card.maxTextHeight))
             contentWidth: availableWidth
             clip: true
 
@@ -125,7 +178,8 @@ Rectangle {
                       : card.hasResult ? card.colors.textPrimary : card.colors.textSecondary
                 selectionColor: card.colors.accentFill
                 selectedTextColor: card.colors.accentText
-                font.pixelSize: card.hasResult ? 18 : card.colors.fontBody
+                font.pixelSize: card.hasResult ? Math.round(18 * card.textScale)
+                                               : card.colors.fontBody
                 TapHandler {
                     enabled: card.hasResult
                     onPressedChanged: if (pressed) card.interactionRequested()
@@ -147,7 +201,7 @@ Rectangle {
                 text: card.showsOriginal ? card.controller.originalText : ""
                 textFormat: TextEdit.PlainText
                 color: card.colors.textSecondary
-                font.pixelSize: card.colors.fontOriginal
+                font.pixelSize: Math.round(card.colors.fontOriginal * card.textScale)
                 wrapMode: TextEdit.Wrap
                 readOnly: true
                 selectByMouse: true

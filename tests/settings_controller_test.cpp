@@ -34,6 +34,7 @@ private slots:
     void automaticCanBeEnabledDuringAnExplicitTranslation();
     void selectionBackendChangeRequiresRestart();
     void selectionDisplaySettingPersists();
+    void interfaceScaleSettingsPersist();
     void xwaylandPopupSettingPersistsAndRequiresRestart();
     void xwaylandPopupAvailabilityFollowsTheSession();
     void explicitTextUsesTheConfiguredLanguages();
@@ -117,6 +118,27 @@ void SettingsControllerTest::selectionDisplaySettingPersists() {
     QVERIFY(reopened.current().selection.showResultImmediately);
     m_controller->setShowResultImmediately(false);
     QVERIFY(!m_controller->showResultImmediately());
+}
+
+void SettingsControllerTest::interfaceScaleSettingsPersist() {
+    QCOMPARE(m_controller->uiScale(), 1.0);
+    QCOMPARE(m_controller->fontScale(), 1.0);
+
+    m_controller->setUiScale(1.25);
+    m_controller->setFontScale(1.4);
+    QCOMPARE(m_controller->uiScale(), 1.25);
+    QCOMPARE(m_controller->fontScale(), 1.4);
+
+    settings::SettingsStore reopened(core::XdgPaths::resolve());
+    reopened.load();
+    QCOMPARE(reopened.current().ui.scale, 1.25);
+    QCOMPARE(reopened.current().ui.fontScale, 1.4);
+
+    // The store clamps out-of-range values on save; the properties follow the saved value.
+    m_controller->setUiScale(9.0);
+    QCOMPARE(m_controller->uiScale(), 1.5);
+    m_controller->setFontScale(0.1);
+    QCOMPARE(m_controller->fontScale(), 0.75);
 }
 
 void SettingsControllerTest::xwaylandPopupSettingPersistsAndRequiresRestart() {

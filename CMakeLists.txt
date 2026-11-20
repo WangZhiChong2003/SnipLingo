@@ -217,6 +217,7 @@ qt_add_resources(sniplyngo_runtime "ui_qml"
         src/ui/qml/AppComboBox.qml
         src/ui/qml/AppScrollBar.qml
         src/ui/qml/AppScrollView.qml
+        src/ui/qml/WindowButton.qml
         src/ui/qml/LanguageNames.js
         src/ui/qml/ResultCard.qml
         src/ui/qml/ResultWindow.qml
@@ -230,6 +231,10 @@ qt_add_resources(sniplyngo "branding"
     PREFIX "/branding"
     BASE "assets/branding"
     FILES assets/branding/sniplingo-icon.png)
+qt_add_resources(sniplyngo "icons"
+    PREFIX "/icons"
+    BASE "assets/icons"
+    FILES assets/icons/pin.svg assets/icons/pin-filled.svg)
 if(TARGET sniplyngo_platform_atspi)
     target_compile_definitions(sniplyngo PRIVATE SNIPLYNGO_HAVE_ATSPI)
 endif()

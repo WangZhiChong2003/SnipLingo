@@ -72,6 +72,7 @@ void SettingsModelTest::validationClampsBoundedFields() {
     settings.selection.stabilityDelayMs = 5;
     settings.selection.maxSelectionChars = 999999;
     settings.selection.resolveTimeoutMs = 1;
+    settings.ui.scale = 9.0;
     settings.ui.fontScale = 9.0;
     settings.provider.firstByteTimeoutMs = 100;
     settings.provider.totalTimeoutMs = 50;
@@ -82,10 +83,13 @@ void SettingsModelTest::validationClampsBoundedFields() {
     QCOMPARE(settings.selection.stabilityDelayMs, 100);
     QCOMPARE(settings.selection.maxSelectionChars, 20000);
     QCOMPARE(settings.selection.resolveTimeoutMs, 200);
+    QCOMPARE(settings.ui.scale, 1.5);
     QCOMPARE(settings.ui.fontScale, 1.75);
     QCOMPARE(settings.provider.firstByteTimeoutMs, 1000);
     QCOMPARE(settings.provider.totalTimeoutMs, 1000);  // raised to at least firstByte
     QVERIFY(issues.contains(QStringLiteral("selection.stabilityDelayMs")));
+    QVERIFY(issues.contains(QStringLiteral("ui.scale")));
+    QVERIFY(issues.contains(QStringLiteral("ui.fontScale")));
     QVERIFY(issues.contains(QStringLiteral("provider.totalTimeoutMs")));
 }
 
