@@ -329,6 +329,8 @@ bool Application::automaticPopupAvailable() const {
     // Native Wayland windows cannot position themselves. The opt-in XWayland mode makes the
     // interface an X11 client, whose pointer anchor comes from the X11 selection backend; that
     // pointer may be stale over a native Wayland source window, which is why the mode is explicit.
+    // The X11 backend can also use a cursor position from the optional GNOME Shell extension.
+    // Selections without a reliable anchor use the inline result.
     return canPositionResultWindow();
 }
 

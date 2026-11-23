@@ -21,6 +21,20 @@ On Wayland, you can read the translation on **Translate** in the main window. If
 and restart SnipLingo. The result can take focus in that mode. On desktops that support the floating
 result, **Show translation immediately** opens the card without waiting for you to hover over the button.
 
+With **X11 / XWayland primary**, SnipLingo positions the floating button where the pointer is
+after the selection settles. XWayland only tracks the pointer over X11 windows.
+
+On GNOME Shell 42–44, use the optional **SnipLingo Pointer** extension for native Wayland apps.
+From a source checkout, run `sh integrations/gnome/install.sh` once and sign back into GNOME if
+the installer asks you to. Keep **Show the floating result near the selection (XWayland)** enabled
+in SnipLingo. You can then launch Chrome, VS Code and other source apps as usual. The extension
+supplies only the cursor position on request over the local session bus. Disable it with GNOME
+Extensions at any time.
+
+When there is no reliable pointer position, **X11 / XWayland primary** shows the translation in
+the main window. **Accessibility events** can also position the button in apps that provide
+screen coordinates for the selected text.
+
 ## The tray icon is missing
 
 Some desktops, including a standard GNOME session, may need an extension to show tray icons. You

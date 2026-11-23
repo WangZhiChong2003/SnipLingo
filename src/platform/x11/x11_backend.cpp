@@ -3,6 +3,8 @@
 #include "core/log.h"
 
 #include <QCoreApplication>
+#include <QDBusConnection>
+#include <QDBusMessage>
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QMutexLocker>
@@ -10,6 +12,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <poll.h>
 #include <unistd.h>
 #include <xcb/xcb.h>
@@ -54,6 +57,80 @@ uint32_t ownerProcessId(xcb_connection_t *connection, xcb_window_t owner, xcb_at
         std::free(tree);
     }
     return 0;
+}
+
+bool pointerMayBeStale() {
+    return !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")
+        || qEnvironmentVariable("XDG_SESSION_TYPE")
+               .compare(QLatin1String("wayland"), Qt::CaseInsensitive)
+        == 0;
+}
+
+// The root's immediate child can be a window manager frame. Follow its children at the sampled
+// coordinates to reach the application inside the frame.
+xcb_window_t windowUnderPointer(
+    xcb_connection_t *connection, const xcb_query_pointer_reply_t &pointer) {
+    xcb_window_t window = pointer.child;
+    for (int depth = 0; window != XCB_WINDOW_NONE && depth < 16; ++depth) {
+        xcb_translate_coordinates_reply_t *reply = xcb_translate_coordinates_reply(connection,
+            xcb_translate_coordinates(
+                connection, pointer.root, window, pointer.root_x, pointer.root_y),
+            nullptr);
+        if (!reply)
+            return XCB_WINDOW_NONE;
+        const xcb_window_t child = reply->child;
+        std::free(reply);
+        if (child == XCB_WINDOW_NONE)
+            return window;
+        window = child;
+    }
+    return XCB_WINDOW_NONE;
+}
+
+std::optional<QRect> queryPointerAnchor(xcb_connection_t *connection, xcb_window_t root,
+    xcb_window_t owner, uint32_t ownerPid, xcb_atom_t pidAtom) {
+    xcb_query_pointer_reply_t *pointer
+        = xcb_query_pointer_reply(connection, xcb_query_pointer(connection, root), nullptr);
+    const auto cleanup = qScopeGuard([pointer] { std::free(pointer); });
+    if (!pointer || !pointer->same_screen)
+        return {};
+
+    // Native X11 tracks the actual cursor regardless of which window owns the selection.
+    const QRect anchor(pointer->root_x, pointer->root_y, 1, 1);
+    if (!pointerMayBeStale())
+        return anchor;
+
+    // XWayland can retain its last coordinates over native Wayland surfaces. Its X server uses
+    // the same resource ID mask for every client. Match the client bits to recognize hidden
+    // selection windows such as Chromium's, which need not publish _NET_WM_PID.
+    const xcb_window_t window = windowUnderPointer(connection, *pointer);
+    if (window == XCB_WINDOW_NONE)
+        return {};
+    const uint32_t clientMask = ~xcb_get_setup(connection)->resource_id_mask;
+    const bool sameClient = (window & clientMask) == (owner & clientMask);
+    if (sameClient || (ownerPid != 0 && ownerProcessId(connection, window, pidAtom) == ownerPid))
+        return anchor;
+
+    core::log::write(core::log::Level::Debug, "selection",
+        QStringLiteral(
+            "ignoring an XWayland pointer anchor outside the selection owner's windows"));
+    return {};
+}
+
+std::optional<QRect> gnomePointerAnchor() {
+    // The optional GNOME Shell extension sees the cursor on native Wayland surfaces. An absent
+    // extension should return immediately and must not activate a D-Bus service.
+    QDBusMessage request = QDBusMessage::createMethodCall(
+        QStringLiteral("io.github.WangZhiChong2003.SnipLingo.Pointer"),
+        QStringLiteral("/io/github/WangZhiChong2003/SnipLingo/Pointer"),
+        QStringLiteral("io.github.WangZhiChong2003.SnipLingo.Pointer"),
+        QStringLiteral("GetPointer"));
+    request.setAutoStartService(false);
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(request, QDBus::Block, 150);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.signature() != QLatin1String("ii"))
+        return {};
+    const auto coordinates = reply.arguments();
+    return QRect(coordinates.at(0).toInt(), coordinates.at(1).toInt(), 1, 1);
 }
 
 }  // namespace
@@ -293,6 +370,7 @@ void X11Backend::workerLoop() {
     m_atomUtf8 = atoms.utf8String;
     m_atomIncr = atoms.incr;
     m_atomProperty = atoms.property;
+    m_atomNetWmPid = atoms.netWmPid;
     xcb_flush(connection);
 
     m_state = selection::BackendState::Running;
@@ -342,10 +420,7 @@ void X11Backend::handleXfixesEvent(const void *opaque) {
         return;
 
     auto *connection = static_cast<xcb_connection_t *>(m_connection);
-    xcb_atom_t pidAtom = XCB_ATOM_NONE;
-    internAtom(connection, "_NET_WM_PID", &pidAtom);
-    const uint32_t ownerPid
-        = pidAtom == XCB_ATOM_NONE ? 0 : ownerProcessId(connection, event->owner, pidAtom);
+    const uint32_t ownerPid = ownerProcessId(connection, event->owner, m_atomNetWmPid);
     if (ownerPid != 0 && ownerPid == uint32_t(QCoreApplication::applicationPid()))
         return;
 
@@ -353,17 +428,11 @@ void X11Backend::handleXfixesEvent(const void *opaque) {
     emitted.seq = m_nextSeq++;
     m_lastEmittedSeq = emitted.seq;
     m_lastOwner = event->owner;
+    m_lastOwnerPid = ownerPid;
     emitted.source.appName = platform::x11::processNameForPid(ownerPid);
     emitted.source.backendId = backendId();
     emitted.observedAt = QDateTime::currentDateTimeUtc();
 
-    // The pointer is a legitimate anchor on X11 (it is not available to Wayland clients).
-    xcb_query_pointer_reply_t *pointer
-        = xcb_query_pointer_reply(connection, xcb_query_pointer(connection, event->owner), nullptr);
-    if (pointer) {
-        emitted.anchorLogical = QRect(pointer->root_x, pointer->root_y, 1, 1);
-        std::free(pointer);
-    }
     emit eventObserved(emitted);
 }
 
@@ -381,19 +450,12 @@ void X11Backend::performResolve(
         return;
     }
 
-    // Some owners claim PRIMARY when the drag starts. Capture the pointer now, after the stability
-    // delay, when it is still over the source window; report it before the potentially slow
-    // conversion so the affordance can move there immediately.
-    std::optional<QRect> pointerAnchor;
-    if (m_lastOwner != XCB_WINDOW_NONE) {
-        xcb_query_pointer_reply_t *pointer = xcb_query_pointer_reply(
-            connection, xcb_query_pointer(connection, m_lastOwner), nullptr);
-        if (pointer != nullptr) {
-            if (pointer->same_screen && pointer->child != XCB_WINDOW_NONE)
-                pointerAnchor = QRect(pointer->root_x, pointer->root_y, 1, 1);
-            std::free(pointer);
-        }
-    }
+    // Some owners claim PRIMARY at the start of a drag. Sample after the stability delay so the
+    // affordance can appear near the latest pointer position before the potentially slow read.
+    auto pointerAnchor
+        = queryPointerAnchor(connection, m_rootWindow, m_lastOwner, m_lastOwnerPid, m_atomNetWmPid);
+    if (!pointerAnchor && pointerMayBeStale())
+        pointerAnchor = gnomePointerAnchor();
     if (pointerAnchor)
         emit anchorRefined(seq, *pointerAnchor);
 

@@ -17,6 +17,18 @@
 **Show the floating result near the selection (XWayland)**，可以开启它并重启 SnipLingo。该模式下浮窗可能会
 取得焦点。支持浮窗的桌面还可以开启 **Show translation immediately**，选中文字后直接展示译文卡片。
 
+使用 **X11 / XWayland primary** 时，SnipLingo 会在选区稳定后根据指针位置放置浮窗按钮。
+XWayland 只跟踪 X11 窗口上的指针。
+
+在 GNOME Shell 42–44 上，原生 Wayland 应用可以配合可选的 **SnipLingo Pointer** 扩展使用浮窗。
+在源码目录运行一次 `sh integrations/gnome/install.sh`，并按提示重新登录 GNOME。
+在 SnipLingo 中保持 **Show the floating result near the selection (XWayland)** 开启。
+Chrome、VS Code 等来源应用照常启动即可。扩展通过本机会话总线按需提供指针坐标，
+可以随时在 GNOME 扩展管理器中关闭。
+
+无法取得可靠指针位置时，**X11 / XWayland primary** 会在主窗口显示译文。
+如果来源应用提供选区的屏幕坐标，也可以使用 **Accessibility events** 定位浮窗。
+
 ## 找不到托盘图标
 
 一些桌面（包括默认 GNOME 会话）可能需要扩展才能显示托盘图标。可以从终端或应用菜单再次启动 SnipLingo 来唤回窗口。

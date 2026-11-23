@@ -120,7 +120,8 @@ int watchSelection(const app::CommandLine &commandLine) {
                     const selection::SelectionText value = result.value();
                     std::printf("seq=%llu app=%s chars=%d anchor=%s\n",
                         static_cast<unsigned long long>(seq), qPrintable(event.source.appName),
-                        int(value.text.size()), event.anchorLogical.has_value() ? "yes" : "no");
+                        int(value.text.size()),
+                        (value.anchorLogical || event.anchorLogical) ? "yes" : "no");
                     if (showText)
                         std::printf("    text: \"%s\"\n", qPrintable(value.text.left(80)));
                     std::fflush(stdout);

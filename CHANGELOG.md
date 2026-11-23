@@ -33,4 +33,8 @@ User-visible changes are listed here. See [the README](README.md) for the curren
 - Keep the floating result open when the pointer merely moves away from it on X11 desktops; an
   outside click still closes it.
 - Draw the floating result's close button with the same caption-button style as the main window.
+- Position the floating selection button using the pointer after the selection settles. On
+  XWayland, use the main window when the pointer cannot be matched to the source application.
+- Add an optional GNOME Shell 42–44 extension to place the floating selection button near the
+  pointer in native Wayland apps.
 - Show clearer connection errors without displaying remote response bodies.

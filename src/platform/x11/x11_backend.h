@@ -63,8 +63,10 @@ private:
     uint32_t m_atomUtf8 = 0;
     uint32_t m_atomIncr = 0;
     uint32_t m_atomProperty = 0;
+    uint32_t m_atomNetWmPid = 0;
     uint8_t m_xfixesEventBase = 0;  // worker thread only
     quint64 m_nextSeq = 1;  // worker thread only
     std::atomic<quint64> m_lastEmittedSeq {0};
     uint32_t m_lastOwner = 0;  // worker thread only
+    uint32_t m_lastOwnerPid = 0;  // worker thread only
 };

@@ -44,6 +44,8 @@ sniplyngo_add_test(x11_protocol_test)
 if(TARGET sniplyngo_platform_x11)
     sniplyngo_add_test(x11_backend_live_test)
     target_link_libraries(x11_backend_live_test PRIVATE sniplyngo_platform_x11)
+    set_tests_properties(x11_backend_live_test PROPERTIES
+        ENVIRONMENT "LD_PRELOAD=$<TARGET_FILE:addrconfig_shim>")
     if(XCB_OUTSIDE_CLICK_FOUND)
         pkg_check_modules(XCB_TEST QUIET IMPORTED_TARGET xcb-xtest)
         if(XCB_TEST_FOUND)
