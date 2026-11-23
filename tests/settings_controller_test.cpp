@@ -35,6 +35,7 @@ private slots:
     void selectionBackendChangeRequiresRestart();
     void selectionDisplaySettingPersists();
     void interfaceScaleSettingsPersist();
+    void uiLanguagePersistsAndRejectsUnknownValues();
     void xwaylandPopupSettingPersistsAndRequiresRestart();
     void xwaylandPopupAvailabilityFollowsTheSession();
     void explicitTextUsesTheConfiguredLanguages();
@@ -139,6 +140,22 @@ void SettingsControllerTest::interfaceScaleSettingsPersist() {
     QCOMPARE(m_controller->uiScale(), 1.5);
     m_controller->setFontScale(0.1);
     QCOMPARE(m_controller->fontScale(), 0.75);
+}
+
+void SettingsControllerTest::uiLanguagePersistsAndRejectsUnknownValues() {
+    QCOMPARE(m_controller->uiLanguage(), QStringLiteral("system"));
+
+    m_controller->setUiLanguage(QStringLiteral("zh-Hans"));
+    QCOMPARE(m_controller->uiLanguage(), QStringLiteral("zh-Hans"));
+
+    settings::SettingsStore reopened(core::XdgPaths::resolve());
+    reopened.load();
+    QCOMPARE(reopened.current().ui.language, QStringLiteral("zh-Hans"));
+
+    QSignalSpy failed(m_controller.get(), &SettingsController::failed);
+    m_controller->setUiLanguage(QStringLiteral("klingon"));
+    QCOMPARE(failed.count(), 1);
+    QCOMPARE(m_controller->uiLanguage(), QStringLiteral("zh-Hans"));
 }
 
 void SettingsControllerTest::xwaylandPopupSettingPersistsAndRequiresRestart() {

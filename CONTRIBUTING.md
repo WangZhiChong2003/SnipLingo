@@ -42,7 +42,9 @@ Use [the security policy](SECURITY.md) to report a vulnerability privately.
 - Keep pull requests focused and describe the user-facing problem, the change and the checks you ran.
 - Add tests for behavior changes, including applicable cancellation and failure cases. For platform
   changes, state which environments you tested.
-- Keep UI strings translatable with `tr()` or `qsTr()`. Keep blocking work off the GUI thread.
+- Keep UI strings translatable with `tr()` or `qsTr()`. Interface translations live in
+  `translations/`; after adding a string, run
+  `cmake --build --preset dev --target update_translations` and translate the new entries. Keep blocking work off the GUI thread.
 - Keep credentials in the secret store and selection or translation text out of logs.
 - Update the affected guides and add user-visible changes under **Unreleased** in [the changelog](CHANGELOG.md).
 - Use [Conventional Commits](https://www.conventionalcommits.org/) and sign off commits with

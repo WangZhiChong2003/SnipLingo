@@ -24,6 +24,7 @@ class SettingsController : public QObject {
     Q_PROPERTY(bool xwaylandPopupAvailable READ xwaylandPopupAvailable NOTIFY changed)
     Q_PROPERTY(bool xwaylandPopupEnabled READ xwaylandPopupEnabled NOTIFY changed)
     Q_PROPERTY(bool popupRestartRequired READ popupRestartRequired NOTIFY changed)
+    Q_PROPERTY(QString uiLanguage READ uiLanguage NOTIFY changed)
     Q_PROPERTY(qreal uiScale READ uiScale NOTIFY changed)
     Q_PROPERTY(qreal fontScale READ fontScale NOTIFY changed)
     Q_PROPERTY(bool observationActive READ observationActive NOTIFY observationChanged)
@@ -57,6 +58,7 @@ public:
     [[nodiscard]] bool xwaylandPopupAvailable() const;
     [[nodiscard]] bool xwaylandPopupEnabled() const;
     [[nodiscard]] bool popupRestartRequired() const;
+    [[nodiscard]] QString uiLanguage() const;
     [[nodiscard]] qreal uiScale() const;
     [[nodiscard]] qreal fontScale() const;
     [[nodiscard]] bool observationActive() const;
@@ -85,6 +87,7 @@ public slots:
     void setPaused(bool paused);
     void setShowResultImmediately(bool enabled);
     QVariantMap setXwaylandPopup(bool enabled);
+    void setUiLanguage(const QString &code);
     void setUiScale(qreal scale);
     void setFontScale(qreal scale);
     void setSelectionBackend(const QString &backend);

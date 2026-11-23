@@ -187,6 +187,7 @@ QJsonObject toJson(const Settings &settings) {
 
     QJsonObject ui;
     ui[QStringLiteral("theme")] = settings.ui.theme;
+    ui[QStringLiteral("language")] = settings.ui.language;
     ui[QStringLiteral("scale")] = settings.ui.scale;
     ui[QStringLiteral("fontScale")] = settings.ui.fontScale;
     ui[QStringLiteral("reduceMotion")] = settings.ui.reduceMotion;
@@ -281,6 +282,14 @@ bool validate(Settings &settings, QStringList *issues) {
     settings.provider.providers = kept;
     if (!settings.provider.activeId.isEmpty() && !keptIds.contains(settings.provider.activeId))
         settings.provider.activeId.clear();
+
+    const QStringList uiLanguages {
+        QStringLiteral("system"), QStringLiteral("en"), QStringLiteral("zh-Hans")};
+    if (!uiLanguages.contains(settings.ui.language)) {
+        if (issues)
+            issues->append(QStringLiteral("ui.language"));
+        settings.ui.language = QStringLiteral("system");
+    }
 
     if (settings.ui.scale < 0.75 || settings.ui.scale > 1.5) {
         settings.ui.scale = std::clamp(settings.ui.scale, 0.75, 1.5);
@@ -403,6 +412,7 @@ LoadResult loadFromDocument(const QJsonObject &document, bool documentWasReadabl
 
     const QJsonObject ui = document.value(QStringLiteral("ui")).toObject();
     settings.ui.theme = ui.value(QStringLiteral("theme")).toString(settings.ui.theme);
+    settings.ui.language = ui.value(QStringLiteral("language")).toString(settings.ui.language);
     settings.ui.scale = ui.value(QStringLiteral("scale")).toDouble(settings.ui.scale);
     settings.ui.fontScale = ui.value(QStringLiteral("fontScale")).toDouble(settings.ui.fontScale);
     settings.ui.reduceMotion

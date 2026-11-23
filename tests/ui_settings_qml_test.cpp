@@ -65,6 +65,7 @@ class StubSettings : public QObject {
     Q_PROPERTY(QString proxyMode MEMBER m_proxyMode NOTIFY changed)
     Q_PROPERTY(QString proxyUrl MEMBER m_proxyUrl NOTIFY changed)
     Q_PROPERTY(QString proxyEffective MEMBER m_proxyEffective NOTIFY changed)
+    Q_PROPERTY(QString uiLanguage MEMBER m_uiLanguage NOTIFY changed)
     Q_PROPERTY(qreal uiScale MEMBER m_uiScale NOTIFY changed)
     Q_PROPERTY(qreal fontScale MEMBER m_fontScale NOTIFY changed)
 
@@ -96,6 +97,7 @@ public:
     QString m_proxyMode = QStringLiteral("system");
     QString m_proxyUrl;
     QString m_proxyEffective = QStringLiteral("system (no proxy variable set)");
+    QString m_uiLanguage = QStringLiteral("system");
     QString m_submittedText;
     QString m_addedPreset;
     qreal m_uiScale = 1.0;
@@ -115,6 +117,11 @@ public slots:
 
     void setUiScale(qreal value) {
         m_uiScale = value;
+        emit changed();
+    }
+
+    void setUiLanguage(const QString &value) {
+        m_uiLanguage = value;
         emit changed();
     }
 
@@ -227,6 +234,7 @@ private slots:
     void hideKeepsAutomaticSetting();
     void selectionDisplaySettingFollowsController();
     void interfaceScaleChoosersFollowAndApplyTheController();
+    void uiLanguageChooserFollowsAndAppliesTheController();
     void xwaylandPopupToggleExplainsRestart();
     void explainsInlineResultsWhenPlacementIsUnavailable();
     void homeExposesSelectionStatusAndTest();
@@ -342,6 +350,39 @@ void UiSettingsQmlTest::interfaceScaleChoosersFollowAndApplyTheController() {
     QTRY_VERIFY(zoomCombo->property("currentIndex").toInt() == 3);
     QVERIFY(quickWindow->grabWindow().save(
         QDir::tempPath() + QStringLiteral("/sniplyngo-settings-zoom.png")));
+}
+
+void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
+    QQmlEngine engine;
+    StubSettings controller;
+    controller.m_uiLanguage = QStringLiteral("zh-Hans");
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/SettingsWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> window(component.create());
+    QVERIFY2(window, qPrintable(component.errorString()));
+    window->setProperty("settingsController", QVariant::fromValue(&controller));
+    window->setProperty("showPreferences", true);
+    window->setProperty("settingsSection", QStringLiteral("interface"));
+    auto *quickWindow = qobject_cast<QQuickWindow *>(window.get());
+    QVERIFY(quickWindow != nullptr);
+    quickWindow->show();
+
+    auto *languageCombo = window->findChild<QQuickItem *>(QStringLiteral("uiLanguageCombo"));
+    QVERIFY(languageCombo != nullptr);
+    QVERIFY(languageCombo->isVisible());
+    QCOMPARE(languageCombo->property("currentIndex").toInt(), 2);  // Simplified Chinese
+
+    QObject *popup = languageCombo->property("popup").value<QObject *>();
+    QVERIFY(popup != nullptr);
+    languageCombo->forceActiveFocus(Qt::TabFocusReason);
+    QTRY_VERIFY(languageCombo->hasActiveFocus());
+    QTest::keyClick(quickWindow, Qt::Key_Space);
+    QTRY_VERIFY(popup->property("visible").toBool());
+    QTest::keyClick(quickWindow, Qt::Key_Up);
+    QTest::keyClick(quickWindow, Qt::Key_Return);
+    QTRY_COMPARE(controller.m_uiLanguage, QStringLiteral("en"));
+    QTRY_VERIFY(languageCombo->property("currentIndex").toInt() == 1);
 }
 
 void UiSettingsQmlTest::xwaylandPopupToggleExplainsRestart() {

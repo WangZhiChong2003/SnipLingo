@@ -985,7 +985,35 @@ Window {
                     Text { text: qsTr("Interface"); color: theme.textPrimary; font.pixelSize: 18; font.bold: true }
                     Text {
                         Layout.fillWidth: true
-                        text: qsTr("Adjust how large the interface and the result text appear. Changes apply immediately.")
+                        text: qsTr("Choose the interface language and how large the interface and result text appear. Changes apply immediately.")
+                        color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: qsTr("Language")
+                            color: theme.textPrimary; font.pixelSize: theme.fontOriginal
+                        }
+                        Item { Layout.fillWidth: true }
+                        LanguageCombo {
+                            objectName: "uiLanguageCombo"
+                            enabled: root.ready
+                            Layout.preferredWidth: 250
+                            textRole: "name"; valueRole: "code"
+                            model: [
+                                { code: "system", name: qsTr("Follow system") },
+                                { code: "en", name: "English" },
+                                { code: "zh-Hans", name: "简体中文" }
+                            ]
+                            currentIndex: root.ready
+                                          ? Math.max(0, ["system", "en", "zh-Hans"].indexOf(root.settingsController.uiLanguage))
+                                          : 0
+                            onActivated: if (root.ready) root.settingsController.setUiLanguage(currentValue)
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Follow system uses Chinese on a Chinese desktop and English everywhere else. Translation results are not affected.")
                         color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
                     }
                     RowLayout {

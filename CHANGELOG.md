@@ -21,6 +21,9 @@ User-visible changes are listed here. See [the README](README.md) for the curren
   would cover half the screen.
 - Zoom the whole interface and set the translation and original text size under
   **Settings → Interface**; both apply immediately.
+- Switch the interface between English and Simplified Chinese under
+  **Settings → Interface**, or follow the desktop locale. The language changes immediately,
+  including the tray menu.
 - Store provider credentials in the system keyring where available, and configure a proxy for
   remote requests.
 

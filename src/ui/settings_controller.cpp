@@ -107,6 +107,10 @@ qreal SettingsController::uiScale() const {
     return m_store->current().ui.scale;
 }
 
+QString SettingsController::uiLanguage() const {
+    return m_store->current().ui.language;
+}
+
 qreal SettingsController::fontScale() const {
     return m_store->current().ui.fontScale;
 }
@@ -312,6 +316,19 @@ QVariantMap SettingsController::setXwaylandPopup(bool enabled) {
     next.selection.xwaylandPopup = enabled;
     const core::Result<void> result = m_store->save(next);
     return result.ok() ? success() : failure(result.error());
+}
+
+void SettingsController::setUiLanguage(const QString &code) {
+    if (code != QLatin1String("system") && code != QLatin1String("en")
+        && code != QLatin1String("zh-Hans")) {
+        reportError({core::ErrorCode::SettingsInvalid, QStringLiteral("unsupported ui language")});
+        return;
+    }
+    settings::Settings next = m_store->current();
+    next.ui.language = code;
+    const core::Result<void> result = m_store->save(next);
+    if (!result.ok())
+        reportError(result.error());
 }
 
 void SettingsController::setUiScale(qreal scale) {

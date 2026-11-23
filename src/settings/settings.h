@@ -75,6 +75,8 @@ struct ConsentRecord {
 
 struct UiSettings {
     QString theme = QStringLiteral("system");
+    // Interface locale: "system" follows the desktop locale; otherwise a supported code.
+    QString language = QStringLiteral("system");
     // Whole-interface zoom for the main window and the floating result.
     qreal scale = 1.0;
     // Translation and original text size multiplier inside the result cards.

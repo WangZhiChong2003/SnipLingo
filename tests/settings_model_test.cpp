@@ -45,6 +45,7 @@ private slots:
     void defaultsAreOffAndRequireExplicitConsent();
     void validationClampsBoundedFields();
     void validationResetsUnknownBackend();
+    void validationResetsUnknownUiLanguage();
     void plainHttpIsRejectedForRemoteEndpointsButAllowedForLoopback();
     void invalidProviderEntriesAreDropped();
     void fingerprintIgnoresCosmeticUrlDifferences();
@@ -65,6 +66,7 @@ void SettingsModelTest::defaultsAreOffAndRequireExplicitConsent() {
     QCOMPARE(settings.selection.backend, QStringLiteral("auto"));
     QVERIFY(!settings.mayAutoSend());
     QVERIFY(settings.activeProvider() == nullptr);
+    QCOMPARE(settings.ui.language, QStringLiteral("system"));
 }
 
 void SettingsModelTest::validationClampsBoundedFields() {
@@ -100,6 +102,15 @@ void SettingsModelTest::validationResetsUnknownBackend() {
     validate(settings, &issues);
     QCOMPARE(settings.selection.backend, QStringLiteral("auto"));
     QVERIFY(issues.contains(QStringLiteral("selection.backend")));
+}
+
+void SettingsModelTest::validationResetsUnknownUiLanguage() {
+    Settings settings;
+    settings.ui.language = QStringLiteral("klingon");
+    QStringList issues;
+    validate(settings, &issues);
+    QCOMPARE(settings.ui.language, QStringLiteral("system"));
+    QVERIFY(issues.contains(QStringLiteral("ui.language")));
 }
 
 void SettingsModelTest::plainHttpIsRejectedForRemoteEndpointsButAllowedForLoopback() {
@@ -237,6 +248,7 @@ void SettingsModelTest::jsonRoundTripPreservesKnownFields() {
     settings.language.source = QStringLiteral("en");
     settings.consent.fingerprint = remoteProvider().fingerprint();
     settings.ui.theme = QStringLiteral("dark");
+    settings.ui.language = QStringLiteral("zh-Hans");
 
     const LoadResult loaded = loadFromDocument(toJson(settings), true);
     QCOMPARE(loaded.outcome, Outcome::Loaded);
@@ -248,6 +260,7 @@ void SettingsModelTest::jsonRoundTripPreservesKnownFields() {
     QCOMPARE(loaded.settings.provider.activeId, QStringLiteral("openai-main"));
     QCOMPARE(loaded.settings.consent.fingerprint, remoteProvider().fingerprint());
     QCOMPARE(loaded.settings.ui.theme, QStringLiteral("dark"));
+    QCOMPARE(loaded.settings.ui.language, QStringLiteral("zh-Hans"));
     QVERIFY(loaded.issues.isEmpty());
 }
 

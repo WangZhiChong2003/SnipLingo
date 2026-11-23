@@ -75,6 +75,8 @@ set_tests_properties(settings_controller_test PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 sniplyngo_add_test(ui_settings_qml_test)
+sniplyngo_add_test(ui_translation_test)
+target_link_libraries(ui_translation_test PRIVATE sniplyngo_runtime)
 sniplyngo_add_test(ui_system_tray_test)
 target_link_libraries(ui_system_tray_test PRIVATE sniplyngo_runtime Qt6::Widgets)
 set_tests_properties(ui_system_tray_test PROPERTIES

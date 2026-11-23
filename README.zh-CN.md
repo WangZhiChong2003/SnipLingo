@@ -22,7 +22,7 @@ SnipLingo 是一款处于 pre-alpha 阶段的 Linux 桌面翻译工具。你可�
 
 ```sh
 sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev \
-  qt6-wayland qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+  qt6-tools-dev qt6-wayland qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
   libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
 ```
@@ -35,8 +35,8 @@ cmake --build build/release --parallel "$(nproc --ignore=2)"
 ./build/release/sniplyngo
 ```
 
-其他发行版需要 C++20 编译器、CMake 3.21+、带 Widgets 的 Qt 6.4+ 和上面列出的 QML 模块。
-AT-SPI 和 X11 的开发包分别用于启用对应的划词支持。
+其他发行版需要 C++20 编译器、CMake 3.21+、带 Widgets 的 Qt 6.4+、上面列出的 QML 模块以及
+Qt Linguist 工具（`lupdate`/`lrelease`）。AT-SPI 和 X11 的开发包分别用于启用对应的划词支持。
 
 ## 完成第一次翻译
 

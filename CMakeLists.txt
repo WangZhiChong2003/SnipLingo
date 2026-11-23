@@ -16,7 +16,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Network DBus Gui Qml Quick Widgets)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Network DBus Gui Qml Quick Widgets LinguistTools)
 find_package(PkgConfig REQUIRED)
 
 include(CTest)
@@ -225,6 +225,28 @@ qt_add_resources(sniplyngo_runtime "ui_qml"
         src/ui/qml/AboutPage.qml
         src/ui/qml/SettingsWindow.qml
         src/ui/qml/ConsentSheet.qml)
+
+# The Chinese catalogue is compiled at build time and embedded under :/i18n. Keeping the source
+# strings in QML/C++ (qsTr/tr) means untranslated entries fall back to English.
+qt_add_lrelease(sniplyngo_runtime
+    TS_FILES translations/sniplyngo_zh_CN.ts
+    QM_FILES_OUTPUT_VARIABLE sniplyngo_qm_files)
+set_source_files_properties(${sniplyngo_qm_files} PROPERTIES GENERATED TRUE)
+qt_add_resources(sniplyngo_runtime "sniplyngo_runtime_translations"
+    PREFIX "/i18n"
+    BASE "${CMAKE_CURRENT_BINARY_DIR}"
+    FILES ${sniplyngo_qm_files})
+# Rewrites the catalogue from tr()/qsTr()/qsTranslate() sources. Run it after adding a string, then
+# fill in the new entries in translations/sniplyngo_zh_CN.ts.
+add_custom_target(update_translations
+    COMMAND Qt6::lupdate
+        -I "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        -locations relative
+        -no-obsolete
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        -ts "${CMAKE_CURRENT_SOURCE_DIR}/translations/sniplyngo_zh_CN.ts"
+    COMMENT "Updating translations/sniplyngo_zh_CN.ts"
+    VERBATIM)
 
 add_executable(sniplyngo src/main.cpp)
 qt_add_resources(sniplyngo "branding"

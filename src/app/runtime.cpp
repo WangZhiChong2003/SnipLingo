@@ -20,6 +20,7 @@
 #include <QGuiApplication>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QLocale>
 #include <QLockFile>
 #include <QMimeData>
 #include <QPointer>
@@ -28,6 +29,7 @@
 #include <QQmlEngine>
 #include <QScreen>
 #include <QTimer>
+#include <QTranslator>
 #include <QWindow>
 
 #include <cstdio>
@@ -55,6 +57,15 @@ QString instanceSocketName() {
 
 QString qrcPath(const QString &file) {
     return QStringLiteral("qrc:/ui/qml/") + file;
+}
+
+// "system" follows the desktop locale. Only Chinese is translated; every other locale keeps the
+// source (English) strings.
+QString resolvedUiLanguage(const QString &preference) {
+    if (preference == QLatin1String("en") || preference == QLatin1String("zh-Hans"))
+        return preference;
+    return QLocale::system().language() == QLocale::Chinese ? QStringLiteral("zh-Hans")
+                                                            : QStringLiteral("en");
 }
 
 bool canPositionResultWindow() {
@@ -95,12 +106,18 @@ struct Application {
 #endif
 
     QQmlEngine engine;
+    // The translator outlives each retranslation; the engine re-evaluates qsTr() bindings after a
+    // language change.
+    QTranslator translator;
+    QString translatedLanguage;
+    bool translatorInstalled = false;
     QObject *resultWindow = nullptr;
     QObject *settingsWindow = nullptr;
     bool automaticPresentation = false;
     QRect resultAnchor;
 
     bool prepare();
+    void applyUiLanguage();
     void rebuildProvider();
     void loadWindows();
     void showSettings();
@@ -122,6 +139,7 @@ bool Application::prepare() {
 
     settings = std::make_unique<settings::SettingsStore>(paths);
     settings->load();
+    applyUiLanguage();
     applyNetworkSettings(settings->current());
     secrets = secrets::createSecretStore(probeSecretService());
 
@@ -151,6 +169,7 @@ bool Application::prepare() {
 
     QObject::connect(settings.get(), &settings::SettingsStore::changed, settings.get(),
         [this](const settings::Settings &next) {
+            applyUiLanguage();
             applyNetworkSettings(next);
             rebuildProvider();
         });
@@ -163,6 +182,29 @@ bool Application::prepare() {
     if (settings->current().selection.automaticEnabled && !settings->current().selection.paused)
         settingsController->setAutomaticEnabled(true);
     return true;
+}
+
+void Application::applyUiLanguage() {
+    const QString language = resolvedUiLanguage(settings->current().ui.language);
+    if (language == translatedLanguage)
+        return;
+    if (translatorInstalled) {
+        QCoreApplication::removeTranslator(&translator);
+        translatorInstalled = false;
+    }
+    translatedLanguage = language;
+    if (language == QLatin1String("zh-Hans")) {
+        // The compiled catalogue ships inside the binary; a missing resource leaves the English
+        // source strings in place.
+        translatorInstalled = translator.load(QStringLiteral(":/i18n/sniplyngo_zh_CN.qm"));
+        if (!translatorInstalled)
+            core::log::writeError("ui",
+                {core::ErrorCode::Internal,
+                    QStringLiteral("cannot load the Chinese translation catalogue")});
+        else
+            QCoreApplication::installTranslator(&translator);
+    }
+    engine.retranslate();
 }
 
 void Application::rebuildProvider() {
@@ -540,6 +582,9 @@ int runGui(const CommandLine &commandLine) {
         });
     } else if (commandLine.command == CommandLine::Command::Settings) {
         ui::SystemTray tray(QGuiApplication::windowIcon());
+        // The settings window changes the interface language in place; keep the tray in sync.
+        QObject::connect(application.settings.get(), &settings::SettingsStore::changed, &tray,
+            [&tray] { tray.retranslate(); });
         QObject::connect(&tray, &ui::SystemTray::openRequested, &tray,
             [&application] { application.showSettings(); });
         QObject::connect(&tray, &ui::SystemTray::quitRequested, qApp, &QCoreApplication::quit);
