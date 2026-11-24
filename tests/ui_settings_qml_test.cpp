@@ -407,6 +407,11 @@ void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
     QTRY_VERIFY(languageCombo->hasActiveFocus());
     QTest::keyClick(quickWindow, Qt::Key_Space);
     QTRY_VERIFY(popup->property("visible").toBool());
+    QQuickItem *systemOption = nullptr;
+    QTRY_VERIFY(
+        (systemOption = visibleItem(quickWindow->contentItem(), QStringLiteral("comboOption0")))
+        != nullptr);
+    QCOMPARE(systemOption->property("text").toString(), QStringLiteral("跟随系统"));
     QTest::keyClick(quickWindow, Qt::Key_Up);
     QTest::keyClick(quickWindow, Qt::Key_Return);
     QTRY_COMPARE(controller.m_uiLanguage, QStringLiteral("en"));
@@ -414,6 +419,10 @@ void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
 
     QTest::keyClick(quickWindow, Qt::Key_Space);
     QTRY_VERIFY(popup->property("visible").toBool());
+    QTRY_VERIFY(
+        (systemOption = visibleItem(quickWindow->contentItem(), QStringLiteral("comboOption0")))
+        != nullptr);
+    QCOMPARE(systemOption->property("text").toString(), QStringLiteral("Follow system"));
     QTest::keyClick(quickWindow, Qt::Key_Down);
     QTest::keyClick(quickWindow, Qt::Key_Return);
     QTRY_COMPARE(controller.m_uiLanguage, QStringLiteral("zh-Hans"));

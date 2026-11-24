@@ -1009,14 +1009,14 @@ Window {
                             objectName: "uiLanguageCombo"
                             enabled: root.ready
                             Layout.preferredWidth: 250
-                            textRole: "name"; valueRole: "code"
-                            model: [
-                                { code: "system", name: qsTr("Follow system") },
-                                { code: "en", name: "English" },
-                                { code: "zh-Hans", name: "简体中文" }
-                            ]
-                            // Match the language code again when retranslation rebuilds the model.
-                            currentValue: root.ready ? root.settingsController.uiLanguage : "system"
+                            // Keep the model stable when the displayed labels are retranslated.
+                            model: ["system", "en", "zh-Hans"]
+                            readonly property var languageNames: ({
+                                system: qsTr("Follow system"), en: "English", "zh-Hans": "简体中文"
+                            })
+                            currentIndex: model.indexOf(root.ready ? root.settingsController.uiLanguage : "system")
+                            formatOption: code => languageNames[code] || ""
+                            displayText: formatOption(currentValue)
                             onActivated: if (root.ready) root.settingsController.setUiLanguage(currentValue)
                         }
                     }
