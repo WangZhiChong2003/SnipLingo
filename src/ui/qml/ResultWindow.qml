@@ -4,12 +4,14 @@ Window {
     id: root
     property var resultController: null
     property var settingsController: null
+    property var placementScreen: null
     property bool interactive: false
     property bool automaticRequest: false
     property bool inlineResult: false
     property bool expanded: true
     property bool activatedForDismissal: false
     property bool dismissAfterLeave: false
+    property bool userInteracted: false
     property bool pinned: false
     property bool runningOnXWayland: false
 
@@ -30,11 +32,19 @@ Window {
     // still be dismissed when the compositor focuses the clicked window. A pinned card stays
     // expanded regardless of focus.
     readonly property bool showingCard: expanded && (pinned || !runningOnXWayland || active)
+    readonly property rect workArea: placementScreen !== null ? placementScreen.availableGeometry
+        : Qt.rect(0, 0, Math.min(screen.width, screen.desktopAvailableWidth),
+                        Math.min(screen.height, screen.desktopAvailableHeight))
 
     Theme { id: theme }
 
     function togglePinned() {
         pinned = !pinned;
+    }
+
+    function fittedSize(preferred, available) {
+        const scaled = preferred * uiScale;
+        return available > 0 ? Math.min(scaled, Math.floor(available / 2)) : scaled;
     }
 
     function activateForInteraction() {
@@ -73,6 +83,7 @@ Window {
     onVisibleChanged: {
         if (!visible) {
             dismissAfterLeave = false;
+            userInteracted = false;
             activatedForDismissal = false;
             interactive = false;
             pinned = false;
@@ -92,8 +103,10 @@ Window {
     }
 
     color: "transparent"
-    width: (showingCard ? 440 : selectionButton.implicitWidth) * uiScale
-    height: (showingCard ? resultCard.implicitHeight : selectionButton.implicitHeight) * uiScale
+    width: fittedSize(showingCard ? resultCard.preferredWidth : selectionButton.implicitWidth,
+                      workArea.width)
+    height: fittedSize(showingCard ? resultCard.implicitHeight : selectionButton.implicitHeight,
+                       workArea.height)
 
     Shortcut {
         sequence: "Escape"
@@ -103,12 +116,11 @@ Window {
 
     Timer {
         interval: 350
-        // Only the XWayland card is dismissed by the pointer: it cannot see clicks on native
-        // Wayland windows. Plain X11 closes through the outside-click watcher instead, so the
-        // card stays readable while the pointer moves within or away from it. A pinned card is
-        // never closed by the pointer.
+        // Keep pointer-leave dismissal for XWayland previews. An interaction such as opening
+        // the original can move the window away from a stationary pointer. After interaction,
+        // dismissal follows outside clicks and focus loss.
         running: root.visible && root.showingCard && root.dismissAfterLeave && root.runningOnXWayland
-                 && !root.pinned && !rootHover.hovered
+                 && !root.pinned && !root.userInteracted && !rootHover.hovered
         onTriggered: root.resultController.dismissOnFocusLoss()
     }
 
@@ -140,6 +152,7 @@ Window {
             onHoveredChanged: if (hovered) root.showFromHover()
             onClicked: {
                 root.expanded = true;
+                root.userInteracted = true;
                 root.activateForInteraction();
             }
         }
@@ -154,7 +167,10 @@ Window {
             pinned: root.pinned
             textScale: root.textScale
             zoom: root.uiScale
-            onInteractionRequested: root.activateForInteraction()
+            onInteractionRequested: {
+                root.userInteracted = true;
+                root.activateForInteraction();
+            }
             onPinRequested: root.togglePinned()
         }
     }

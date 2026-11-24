@@ -281,8 +281,8 @@ void Application::loadWindows() {
             resultAnchor = automatic && anchor.isValid() && automaticPopupAvailable()
                 ? logicalAnchor(anchor, x11Pointer)
                 : QRect();
-            // A pinned card stays expanded, interactive and in place; presentations only change
-            // its text through the controller. Unpinning lets the next presentation take over.
+            // A pinned card stays expanded and interactive; its text changes through the
+            // controller without following the new selection anchor.
             if (result->property("pinned").toBool())
                 return;
             const bool inlineResult = origin == coordinator::Origin::ExplicitPaste
@@ -292,6 +292,7 @@ void Application::loadWindows() {
             // The old surface may lose focus synchronously when the new route hides it.
             result->setProperty("activatedForDismissal", false);
             result->setProperty("dismissAfterLeave", false);
+            result->setProperty("userInteracted", false);
             result->setProperty("automaticRequest", automatic);
             result->setProperty("inlineResult", inlineResult);
             if (settingsWindow)
@@ -303,10 +304,14 @@ void Application::loadWindows() {
             if (result->property("visible").toBool())
                 QMetaObject::invokeMethod(result, "activateForPresentation", Qt::QueuedConnection);
         });
+    auto *popup = qobject_cast<QWindow *>(result);
+    // Updating the work area can resize the QML window; place it after that layout update.
     QObject::connect(
-        qobject_cast<QWindow *>(result), &QWindow::widthChanged, result, [this] { showResult(); });
+        popup, &QWindow::widthChanged, result, [this] { showResult(); }, Qt::QueuedConnection);
     QObject::connect(
-        qobject_cast<QWindow *>(result), &QWindow::heightChanged, result, [this] { showResult(); });
+        popup, &QWindow::heightChanged, result, [this] { showResult(); }, Qt::QueuedConnection);
+    QObject::connect(
+        popup, &QWindow::screenChanged, result, [this] { showResult(); }, Qt::QueuedConnection);
 
     QQmlComponent settingsComponent(&engine, QUrl(qrcPath(QStringLiteral("SettingsWindow.qml"))));
     if (settingsComponent.isError()) {
@@ -347,32 +352,37 @@ void Application::showSettings() {
 }
 
 void Application::showResult() {
-    if (!canPositionResultWindow() || resultWindow->property("inlineResult").toBool())
-        return;
-    // A pinned card keeps the user's placement; new content only resizes it in place.
-    if (resultWindow->property("pinned").toBool())
+    if (resultWindow->property("inlineResult").toBool())
         return;
     if (auto *window = qobject_cast<QWindow *>(resultWindow)) {
+        const bool canPosition = canPositionResultWindow();
+        const bool pinned = window->property("pinned").toBool();
         const QPoint anchor = automaticPresentation ? resultAnchor.center() : QCursor::pos();
-        const QScreen *screen = QGuiApplication::screenAt(anchor);
+        QScreen *screen
+            = pinned || !canPosition ? window->screen() : QGuiApplication::screenAt(anchor);
         if (!screen)
             screen = QGuiApplication::primaryScreen();
         if (!screen)
             return;
+        window->setProperty("placementScreen", QVariant::fromValue(screen));
+        if (!canPosition)
+            return;
         const QRect area = screen->availableGeometry();
         const QSize size = window->size();
-        QPoint position = area.center() - QPoint(size.width() / 2, size.height() / 2);
-        if (automaticPresentation) {
+        // Keep a pinned card in place unless resizing would move part of it off the work area.
+        QPoint position = pinned ? window->position()
+                                 : area.center() - QPoint(size.width() / 2, size.height() / 2);
+        if (automaticPresentation && !pinned) {
             constexpr int gap = 12;
-            const int x = resultAnchor.left();
             int y = resultAnchor.bottom() + gap;
             if (y + size.height() > area.bottom() + 1)
                 y = resultAnchor.top() - size.height() - gap;
-            position.setX(
-                qBound(area.left(), x, qMax(area.left(), area.right() - size.width() + 1)));
-            position.setY(
-                qBound(area.top(), y, qMax(area.top(), area.bottom() - size.height() + 1)));
+            position = QPoint(resultAnchor.left(), y);
         }
+        position.setX(
+            qBound(area.left(), position.x(), qMax(area.left(), area.right() - size.width() + 1)));
+        position.setY(
+            qBound(area.top(), position.y(), qMax(area.top(), area.bottom() - size.height() + 1)));
         window->setPosition(position);
     }
     // Visibility follows ResultController in QML; writing it here would replace that binding.

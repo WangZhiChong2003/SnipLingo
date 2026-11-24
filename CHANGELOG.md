@@ -4,6 +4,20 @@ User-visible changes are listed here. See [the README](README.md) for installati
 
 ## Unreleased
 
+### Changed
+
+- Grow both the original and translated text panes with their content. Each pane scrolls when
+  it reaches its height limit.
+- Widen the floating result for longer lines. Limit its width and height to half of the current
+  display's work area, including when interface zoom is enabled.
+
+### Fixed
+
+- Use the same font size for the translation and original text. Adjust both under
+  **Settings → Interface → Result text size**.
+- Keep the XWayland translation card open when expanding the original moves the card away from
+  the pointer.
+
 ## 1.0.0
 
 ### Changed

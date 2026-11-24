@@ -25,6 +25,7 @@ QtObject {
     readonly property int radiusControl: 10
     readonly property int spacing: 12
     readonly property int padding: 18
+    readonly property int fontResult: 18
     readonly property int fontBody: 15
     readonly property int fontOriginal: 13
     readonly property int fontMeta: 12

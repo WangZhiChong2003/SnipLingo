@@ -288,7 +288,7 @@
 <context>
     <name>ResultCard</name>
     <message>
-        <location filename="../src/ui/qml/ResultCard.qml" line="+43"/>
+        <location filename="../src/ui/qml/ResultCard.qml" line="+44"/>
         <source>The service is limiting requests or its quota is exhausted. Try again later or choose another engine.</source>
         <translation>服务正在限制请求或配额已用尽。请稍后重试或选择其他引擎。</translation>
     </message>
@@ -388,7 +388,7 @@
         <translation>原文</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Hide original</source>
         <translation>隐藏原文</translation>
     </message>
@@ -411,7 +411,7 @@
 <context>
     <name>ResultWindow</name>
     <message>
-        <location filename="../src/ui/qml/ResultWindow.qml" line="+137"/>
+        <location filename="../src/ui/qml/ResultWindow.qml" line="+138"/>
         <source>Translate</source>
         <translation>翻译</translation>
     </message>
@@ -580,12 +580,12 @@
     </message>
     <message>
         <location line="-630"/>
-        <location line="+738"/>
+        <location line="+726"/>
         <source>Network</source>
         <translation>网络</translation>
     </message>
     <message>
-        <location line="-737"/>
+        <location line="-725"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
@@ -929,13 +929,13 @@
     </message>
     <message>
         <location line="+6"/>
-        <source>Translation text size</source>
-        <translation>译文文字大小</translation>
+        <source>Result text size</source>
+        <translation>翻译结果字号</translation>
     </message>
     <message>
-        <location line="+29"/>
-        <source>Sets the translation text size. The original text follows at a proportionally smaller size.</source>
-        <translation>设置译文文字大小。原文会按比例显示得更小。</translation>
+        <location line="+17"/>
+        <source>Sets the same text size for the translation and original.</source>
+        <translation>统一调整原文和译文的字号。</translation>
     </message>
     <message>
         <location line="+18"/>

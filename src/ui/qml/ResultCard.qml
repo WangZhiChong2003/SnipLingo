@@ -22,11 +22,16 @@ Rectangle {
     readonly property bool hasResult: stateKey === "streaming" || stateKey === "done"
     readonly property bool showsOriginal: controller !== null && controller.originalVisible
                                           && !controller.originalCollapsed
-    // The card follows its content: the text area grows with the translated text, and the scroll
-    // view takes over once it would cover half the screen. The floating window is repositioned
-    // (and clamped to the screen) whenever its height changes.
+    readonly property int resultFontSize: Math.round(colors.fontResult * textScale)
+    // An editor's implicit width measures its longest line before wrapping.
+    readonly property real preferredWidth: {
+        const translatedWidth = hasResult ? translationText.implicitWidth : 0
+        const textWidth = Math.max(translatedWidth, originalText.implicitWidth)
+        return Math.max(440, Math.min(720, textWidth + contentLayout.anchors.margins * 2))
+    }
+    // Each text pane grows with its content up to half the available screen height or 320 px.
     readonly property real maxTextHeight: {
-        const available = Screen.availableHeight
+        const available = Math.min(Screen.height, Screen.desktopAvailableHeight)
         return Math.min(320, available > 0 ? available * 0.5 : 320)
     }
 
@@ -56,6 +61,16 @@ Rectangle {
     component CardButton: AppButton {
         colors: card.colors
         implicitHeight: 34
+    }
+
+    component CardTextScroll: AppScrollView {
+        required property real textHeight
+        colors: card.colors
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.preferredHeight: Math.max(40, Math.min(textHeight, card.maxTextHeight))
+        contentWidth: availableWidth
+        clip: true
     }
 
     ColumnLayout {
@@ -141,17 +156,10 @@ Rectangle {
 
         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: card.colors.border }
 
-        AppScrollView {
+        CardTextScroll {
             id: translationScroll
-            colors: card.colors
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            // Natural text height, floored at one line and capped at the screen-relative maximum;
-            // the column's implicit height grows from this so the window follows the content.
-            Layout.preferredHeight: Math.max(
-                40, Math.min(translationText.implicitHeight, card.maxTextHeight))
-            contentWidth: availableWidth
-            clip: true
+            objectName: "translationScroll"
+            textHeight: translationText.implicitHeight
 
             TextEdit {
                 id: translationText
@@ -178,8 +186,7 @@ Rectangle {
                       : card.hasResult ? card.colors.textPrimary : card.colors.textSecondary
                 selectionColor: card.colors.accentFill
                 selectedTextColor: card.colors.accentText
-                font.pixelSize: card.hasResult ? Math.round(18 * card.textScale)
-                                               : card.colors.fontBody
+                font.pixelSize: card.hasResult ? card.resultFontSize : card.colors.fontBody
                 TapHandler {
                     enabled: card.hasResult
                     onPressedChanged: if (pressed) card.interactionRequested()
@@ -187,21 +194,21 @@ Rectangle {
             }
         }
 
-        AppScrollView {
+        CardTextScroll {
             id: originalScroll
-            colors: card.colors
-            Layout.fillWidth: true
-            Layout.preferredHeight: 65
+            objectName: "originalScroll"
+            textHeight: originalText.implicitHeight
             visible: card.showsOriginal
-            contentWidth: availableWidth
-            clip: true
             TextEdit {
+                id: originalText
+                objectName: "originalText"
                 width: originalScroll.availableWidth
                 rightPadding: 10
+                topPadding: 4
                 text: card.showsOriginal ? card.controller.originalText : ""
                 textFormat: TextEdit.PlainText
                 color: card.colors.textSecondary
-                font.pixelSize: Math.round(card.colors.fontOriginal * card.textScale)
+                font.pixelSize: card.resultFontSize
                 wrapMode: TextEdit.Wrap
                 readOnly: true
                 selectByMouse: true
@@ -213,6 +220,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             CardButton {
+                objectName: "originalButton"
                 visible: card.controller !== null && card.controller.originalVisible
                 text: card.showsOriginal ? qsTr("Hide original") : qsTr("Original")
                 flat: true

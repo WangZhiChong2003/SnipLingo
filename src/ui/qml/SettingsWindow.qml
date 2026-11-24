@@ -1046,36 +1046,24 @@ Window {
                     RowLayout {
                         Layout.fillWidth: true
                         Text {
-                            text: qsTr("Translation text size")
+                            text: qsTr("Result text size")
                             color: theme.textPrimary; font.pixelSize: theme.fontOriginal
                         }
                         Item { Layout.fillWidth: true }
-                        // The sizes are the translation text's pixel height; they are stored as a
-                        // multiplier of the 18 px base that ResultCard renders.
                         LanguageCombo {
                             objectName: "textScaleCombo"
                             enabled: root.ready
                             Layout.preferredWidth: 250
-                            textRole: "name"; valueRole: "code"
-                            model: [
-                                { code: 14 / 18, name: "14 px" },
-                                { code: 16 / 18, name: "16 px" },
-                                { code: 1.0, name: "18 px" },
-                                { code: 20 / 18, name: "20 px" },
-                                { code: 22 / 18, name: "22 px" },
-                                { code: 24 / 18, name: "24 px" },
-                                { code: 26 / 18, name: "26 px" },
-                                { code: 28 / 18, name: "28 px" },
-                                { code: 30 / 18, name: "30 px" }
-                            ]
-                            currentIndex: root.nearestListedIndex(
-                                18 * root.textScale, [14, 16, 18, 20, 22, 24, 26, 28, 30])
-                            onActivated: if (root.ready) root.settingsController.setFontScale(currentValue)
+                            readonly property var sizes: [14, 16, 18, 20, 22, 24, 26, 28, 30]
+                            textRole: "name"; valueRole: "pixels"
+                            model: sizes.map(pixels => ({ pixels: pixels, name: pixels + " px" }))
+                            currentIndex: root.nearestListedIndex(theme.fontResult * root.textScale, sizes)
+                            onActivated: if (root.ready) root.settingsController.setFontScale(currentValue / theme.fontResult)
                         }
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: qsTr("Sets the translation text size. The original text follows at a proportionally smaller size.")
+                        text: qsTr("Sets the same text size for the translation and original.")
                         color: theme.textSecondary; font.pixelSize: theme.fontMeta; wrapMode: Text.Wrap
                     }
                 }

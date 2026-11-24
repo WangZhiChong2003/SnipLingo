@@ -16,6 +16,17 @@
 
 namespace {
 
+class StubScreen : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QRect availableGeometry MEMBER availableGeometry NOTIFY geometryChanged)
+
+public:
+    QRect availableGeometry {0, 0, 1280, 1000};
+
+signals:
+    void geometryChanged();
+};
+
 class StubController : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool visible MEMBER m_visible NOTIFY changed)
@@ -86,6 +97,8 @@ private slots:
     void directAutomaticResultUsesPlatformFocusPolicy();
     void inlineResultUsesTheHomeCard();
     void expandedResultDismissesWhenAnotherWindowActivates();
+    void openingLongOriginalKeepsXWaylandCardOpen();
+    void bothResultPanesGrowAndScroll();
     void pinnedCardSurvivesFocusLossAndPointerLeave();
     void resultWindowScalesWithInterfaceSettings();
 };
@@ -342,6 +355,127 @@ void UiQmlLoadTest::expandedResultDismissesWhenAnotherWindowActivates() {
     QTRY_COMPARE(controller.dismissCalls, 1);
 }
 
+void UiQmlLoadTest::openingLongOriginalKeepsXWaylandCardOpen() {
+    QQmlEngine engine;
+    StubController controller;
+    controller.m_stateKey = QStringLiteral("done");
+    controller.m_translatedText = QStringLiteral("Short translation");
+    controller.m_originalText = QStringLiteral("Original paragraph. ").repeated(100);
+    controller.m_originalVisible = true;
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ResultWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> object(component.create());
+    QVERIFY2(object, qPrintable(component.errorString()));
+    object->setProperty("resultController", QVariant::fromValue(&controller));
+    object->setProperty("automaticRequest", true);
+    object->setProperty("runningOnXWayland", true);
+    object->setProperty("expanded", false);
+    auto *window = qobject_cast<QQuickWindow *>(object.get());
+    QVERIFY(window != nullptr);
+    // Use a different global position from the earlier compact-button mouse tests.
+    window->setPosition(320, 140);
+    controller.m_visible = true;
+    emit controller.changed();
+    QTRY_VERIFY(window->isVisible());
+    QTRY_VERIFY(window->width() < 150);
+    QTest::mouseMove(window, QPoint(window->width() / 2, window->height() / 2));
+    QTRY_VERIFY(object->property("showingCard").toBool());
+
+    auto *button = window->findChild<QQuickItem *>(QStringLiteral("originalButton"));
+    QVERIFY(button != nullptr);
+    QTRY_VERIFY(button->width() > 0);
+    const QPoint center
+        = button->mapToScene(QPointF(button->width() / 2, button->height() / 2)).toPoint();
+    const int height = window->height();
+    QTest::mouseMove(window, center);
+    QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, center);
+    QTRY_VERIFY(!controller.m_originalCollapsed);
+    QTRY_VERIFY(window->height() > height);
+    const auto *original = window->findChild<QQuickItem *>(QStringLiteral("originalText"));
+    QVERIFY(original != nullptr);
+    QCOMPARE(original->property("text").toString(), controller.m_originalText);
+
+    // A screen-edge reposition can send leave during the resize, even with a stationary pointer.
+    QEvent leave(QEvent::Leave);
+    QCoreApplication::sendEvent(window, &leave);
+    QTest::qWait(500);  // longer than the XWayland hover dismissal delay
+    QCOMPARE(controller.dismissCalls, 0);
+    QVERIFY(object->property("showingCard").toBool());
+
+    QWindow other;
+    other.show();
+    other.requestActivate();
+    QTRY_COMPARE(controller.dismissCalls, 1);
+}
+
+void UiQmlLoadTest::bothResultPanesGrowAndScroll() {
+    QQmlEngine engine;
+    StubController controller;
+    StubScreen screen;
+    controller.m_stateKey = QStringLiteral("done");
+    controller.m_translatedText = QStringLiteral("Short translation");
+    controller.m_originalText = QStringLiteral("Short original");
+    controller.m_originalVisible = true;
+    controller.m_originalCollapsed = false;
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ResultWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> object(component.create());
+    QVERIFY2(object, qPrintable(component.errorString()));
+    object->setProperty("resultController", QVariant::fromValue(&controller));
+    object->setProperty("settingsController", QVariant::fromValue(&controller));
+    object->setProperty("placementScreen", QVariant::fromValue(&screen));
+    auto *window = qobject_cast<QQuickWindow *>(object.get());
+    QVERIFY(window != nullptr);
+    controller.m_visible = true;
+    emit controller.changed();
+
+    const auto *translation = window->findChild<QQuickItem *>(QStringLiteral("translationScroll"));
+    const auto *original = window->findChild<QQuickItem *>(QStringLiteral("originalScroll"));
+    QVERIFY(translation != nullptr);
+    QVERIFY(original != nullptr);
+    QTRY_COMPARE(window->width(), 440);
+    QTRY_VERIFY(translation->height() >= 40 && original->height() >= 40);
+    QVERIFY(translation->height() < 100);
+    QVERIFY(original->height() < 100);
+
+    const QString longText = QStringLiteral("A paragraph long enough to wrap. ").repeated(100);
+    controller.m_originalText = longText;
+    emit controller.changed();
+    QTRY_COMPARE(window->width(), 640);  // half of the current work area's width
+    QTRY_VERIFY(original->height() > 100);
+    QVERIFY(translation->height() < 100);
+
+    controller.toggleOriginal();
+    QTRY_COMPARE(window->width(), 440);
+    controller.m_translatedText = longText;
+    emit controller.changed();
+    QTRY_COMPARE(window->width(), 640);
+    controller.toggleOriginal();
+    QTRY_VERIFY(translation->height() > 100);
+    QTRY_VERIFY(window->height() <= 500);
+
+    screen.availableGeometry.setWidth(1920);
+    emit screen.geometryChanged();
+    QTRY_COMPARE(window->width(), 720);
+
+    controller.m_uiScale = 1.5;
+    emit controller.changed();
+    QTRY_COMPARE(window->width(), 960);
+    QTRY_COMPARE(window->height(), 500);
+    QTRY_VERIFY(qAbs(translation->height() - original->height()) <= 1);
+    QTRY_VERIFY(translation->height() >= 40);
+    QTRY_VERIFY(original->height() >= 40);
+    QTRY_VERIFY(translation->property("contentHeight").toReal() > translation->height());
+    QTRY_VERIFY(original->property("contentHeight").toReal() > original->height());
+
+    screen.availableGeometry.setSize(QSize(801, 601));
+    emit screen.geometryChanged();
+    QTRY_COMPARE(window->width(), 400);
+    QTRY_COMPARE(window->height(), 300);
+}
+
 void UiQmlLoadTest::pinnedCardSurvivesFocusLossAndPointerLeave() {
     QQmlEngine engine;
     StubController controller;
@@ -403,8 +537,12 @@ void UiQmlLoadTest::pinnedCardSurvivesFocusLossAndPointerLeave() {
 void UiQmlLoadTest::resultWindowScalesWithInterfaceSettings() {
     QQmlEngine engine;
     StubController controller;
+    StubScreen screen;
     controller.m_stateKey = QStringLiteral("done");
     controller.m_translatedText = QStringLiteral("你好");
+    controller.m_originalText = QStringLiteral("Hello");
+    controller.m_originalVisible = true;
+    controller.m_originalCollapsed = false;
     QQmlComponent component(
         &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ResultWindow.qml")));
     QVERIFY2(component.isReady(), qPrintable(component.errorString()));
@@ -412,6 +550,7 @@ void UiQmlLoadTest::resultWindowScalesWithInterfaceSettings() {
     QVERIFY2(object, qPrintable(component.errorString()));
     object->setProperty("resultController", QVariant::fromValue(&controller));
     object->setProperty("settingsController", QVariant::fromValue(&controller));
+    object->setProperty("placementScreen", QVariant::fromValue(&screen));
     object->setProperty("automaticRequest", true);
     object->setProperty("expanded", true);
     controller.m_visible = true;
@@ -428,12 +567,18 @@ void UiQmlLoadTest::resultWindowScalesWithInterfaceSettings() {
     QVERIFY(zoomLayer != nullptr);
     QCOMPARE(zoomLayer->width(), 440.0);
 
-    // The text size applies to the translated text on top of the zoom.
+    const QObject *translation = window->findChild<QObject *>(QStringLiteral("translatedText"));
+    const QObject *original = window->findChild<QObject *>(QStringLiteral("originalText"));
+    QVERIFY(translation != nullptr);
+    QVERIFY(original != nullptr);
+    QCOMPARE(translation->property("font").value<QFont>().pixelSize(), 18);
+    QCOMPARE(original->property("font").value<QFont>().pixelSize(), 18);
+
+    // The same text-size setting applies to both bodies on top of the window zoom.
     controller.m_fontScale = 1.5;
     emit controller.changed();
-    const QObject *text = window->findChild<QObject *>(QStringLiteral("translatedText"));
-    QVERIFY(text != nullptr);
-    QTRY_COMPARE(text->property("font").value<QFont>().pixelSize(), qRound(18 * 1.5));
+    QTRY_COMPARE(translation->property("font").value<QFont>().pixelSize(), 27);
+    QTRY_COMPARE(original->property("font").value<QFont>().pixelSize(), 27);
 }
 
 QTEST_MAIN(UiQmlLoadTest)

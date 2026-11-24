@@ -352,6 +352,16 @@ void UiSettingsQmlTest::interfaceScaleChoosersFollowAndApplyTheController() {
     QTRY_VERIFY(zoomCombo->property("currentIndex").toInt() == 3);
     QVERIFY(saveWindowSnapshot(
         quickWindow, QDir::tempPath() + QStringLiteral("/sniplyngo-settings-zoom.png")));
+
+    QObject *textPopup = textCombo->property("popup").value<QObject *>();
+    QVERIFY(textPopup != nullptr);
+    textCombo->forceActiveFocus(Qt::TabFocusReason);
+    QTRY_VERIFY(textCombo->hasActiveFocus());
+    QTest::keyClick(quickWindow, Qt::Key_Space);
+    QTRY_VERIFY(textPopup->property("visible").toBool());
+    QTest::keyClick(quickWindow, Qt::Key_Down);
+    QTest::keyClick(quickWindow, Qt::Key_Return);
+    QTRY_COMPARE(controller.m_fontScale, 28.0 / 18.0);
 }
 
 void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
