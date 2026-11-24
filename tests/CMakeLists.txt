@@ -1,4 +1,4 @@
-find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
+find_package(Qt6 6.2.4 REQUIRED COMPONENTS Test)
 
 # Both live D-Bus tests reach a private daemon over TCP; see support/addrconfig_shim.c. The target is
 # created unconditionally because it is independent of the optional AT-SPI backend.
@@ -86,8 +86,6 @@ set_tests_properties(ui_system_tray_test PROPERTIES
 target_compile_definitions(ui_settings_qml_test PRIVATE
     SNIPLYNGO_QML_DIR="${CMAKE_SOURCE_DIR}/src/ui/qml")
 target_link_libraries(ui_settings_qml_test PRIVATE Qt6::Qml Qt6::Quick)
-set_tests_properties(ui_settings_qml_test PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # Exercise the RHI texture path without requiring a display server or a GPU.
 add_test(NAME ui_about_texture_test COMMAND ui_settings_qml_test aboutUsesTheApplicationVersion)
 set_tests_properties(ui_about_texture_test PROPERTIES TIMEOUT 60
@@ -108,8 +106,8 @@ foreach(ui_test IN ITEMS ui_qml_load_test ui_settings_qml_test)
         FILES "${CMAKE_SOURCE_DIR}/assets/icons/pin.svg"
               "${CMAKE_SOURCE_DIR}/assets/icons/pin-filled.svg")
 endforeach()
-set_tests_properties(ui_qml_load_test PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+set_tests_properties(ui_qml_load_test ui_settings_qml_test PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 
 # Only meaningful when the AT-SPI backend was built; it needs a private D-Bus daemon on TCP.
 if(TARGET sniplyngo_platform_atspi)

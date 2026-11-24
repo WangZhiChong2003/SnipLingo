@@ -11,20 +11,21 @@
   <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-SnipLingo is a pre-alpha Linux desktop translator. Paste text into its main window or select text in a
+SnipLingo is a Linux desktop translator. Paste text into its main window or select text in a
 supported app to see a translation. You choose the translation engine, which can run on your computer
 or use an online service.
 
 ## Get SnipLingo
 
-The current preview is available as source code. Clone this repository or download and extract the
-source, then open a terminal in the source directory.
+To build from source, clone this repository or download and extract the source, then open a terminal
+in the source directory.
 
-On Ubuntu 24.04, install the build tools, Qt runtime and selection backend dependencies.
+On Ubuntu 22.04, install the build tools, Qt runtime and selection backend dependencies.
 
 ```sh
 sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev \
-  qt6-tools-dev qt6-wayland qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+  qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-wayland libgl-dev libqt6opengl6-dev \
+  qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
   libqt6svg6 libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
 ```
@@ -37,7 +38,7 @@ cmake --build build/release --parallel "$(nproc --ignore=2)"
 ./build/release/sniplyngo
 ```
 
-Other distributions need a C++20 compiler, CMake 3.21+ and Qt 6.4+ with Widgets, the QML modules
+Other distributions need a C++20 compiler, CMake 3.21+ and Qt 6.2.4+ with Widgets, the QML modules
 listed above and the Qt Linguist tools (`lupdate`/`lrelease`), plus the Qt SVG library whose
 image-format plugin renders the result-card icons. The
 AT-SPI and X11 development packages enable automatic selection support for those backends.
@@ -79,7 +80,6 @@ discards the text. Manual translation sends text to the configured engine when y
 Credentials use the system keyring where available. Without persistent credential storage, you
 may need to enter your key again after quitting.
 
-This preview supports manual translation and automatic selection. Region capture, OCR, global
-shortcuts and translated interface catalogs are outside its current feature set.
+Region capture, OCR and global shortcuts are outside the current feature set.
 
 [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [GPL-3.0-or-later](LICENSE)

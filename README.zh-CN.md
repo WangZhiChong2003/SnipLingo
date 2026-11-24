@@ -11,20 +11,21 @@
   <a href="README.md">English</a>
 </p>
 
-SnipLingo 是一款处于 pre-alpha 阶段的 Linux 桌面翻译工具。你可以把文字粘贴进主窗口，也可以在支持划词的
+SnipLingo 是一款 Linux 桌面翻译工具。你可以把文字粘贴进主窗口，也可以在支持划词的
 应用里选中文字查看译文。翻译引擎由你选择，可以使用本机服务或在线服务。
 
 ## 获取 SnipLingo
 
-当前预览版以源码形式提供。克隆仓库，或下载并解压源码，然后在源码目录打开终端。
+要从源码构建，请克隆仓库，或下载并解压源码，然后在源码目录打开终端。
 
-在 Ubuntu 24.04 上，先安装构建工具、Qt 运行时和划词支持所需的依赖。
+在 Ubuntu 22.04 上，先安装构建工具、Qt 运行时和划词支持所需的依赖。
 
 ```sh
 sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev qt6-declarative-dev \
-  qt6-tools-dev qt6-wayland qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+  qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools qt6-wayland libgl-dev libqt6opengl6-dev \
+  qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
-  libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
+  libqt6svg6 libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev libxcb-xfixes0-dev libxcb-xinput-dev
 ```
 
 在源码目录构建并运行。
@@ -35,8 +36,8 @@ cmake --build build/release --parallel "$(nproc --ignore=2)"
 ./build/release/sniplyngo
 ```
 
-其他发行版需要 C++20 编译器、CMake 3.21+、带 Widgets 的 Qt 6.4+、上面列出的 QML 模块以及
-Qt Linguist 工具（`lupdate`/`lrelease`）。AT-SPI 和 X11 的开发包分别用于启用对应的划词支持。
+其他发行版需要 C++20 编译器、CMake 3.21+、带 Widgets 的 Qt 6.2.4+、上面列出的 QML 模块以及
+Qt Linguist 工具（`lupdate`/`lrelease`）。结果卡片的图标由 Qt SVG 插件渲染。AT-SPI 和 X11 的开发包分别用于启用对应的划词支持。
 
 ## 完成第一次翻译
 
@@ -68,6 +69,6 @@ Qt Linguist 工具（`lupdate`/`lrelease`）。AT-SPI 和 X11 的开发包分别
 划词监听需要主动开启。临时选区测试只在本机读取文字，随后丢弃。手动翻译时，点击翻译才会将文字交给所选引擎。
 凭据优先保存在系统密钥环中。如果无法持久保存凭据，退出后可能需要重新输入密钥。
 
-当前预览版提供手动翻译和划词翻译。区域截图、OCR、全局快捷键和界面语言包尚未提供。
+区域截图、OCR 和全局快捷键尚未提供。
 
 [贡献指南](CONTRIBUTING.md) · [安全政策](SECURITY.md) · [GPL-3.0-or-later](LICENSE)

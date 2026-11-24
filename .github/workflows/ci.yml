@@ -16,8 +16,8 @@ concurrency:
 
 jobs:
   build:
-    name: Build and test (Ubuntu Qt)
-    runs-on: ubuntu-24.04
+    name: Build and test (Ubuntu 22.04 / Qt 6.2)
+    runs-on: ubuntu-22.04
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -27,14 +27,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build pkg-config \
-            qt6-base-dev qt6-declarative-dev qt6-tools-dev dbus-daemon \
+            build-essential cmake ninja-build pkg-config dbus-daemon xvfb xauth xclip \
+            qt6-base-dev qt6-declarative-dev qt6-tools-dev qt6-tools-dev-tools qt6-l10n-tools \
+            qt6-wayland libgl-dev libqt6opengl6-dev libqt6svg6 \
             qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-templates qml6-module-qtquick-window \
-            qml6-module-qtqml-workerscript
+            qml6-module-qtqml-workerscript \
+            libatspi2.0-dev libglib2.0-dev libdbus-1-dev libxcb1-dev \
+            libxcb-xfixes0-dev libxcb-xinput-dev libxcb-xtest0-dev
 
       - name: Report toolchain versions
-        run: cmake --version && ninja --version && pkg-config --modversion Qt6Core
+        run: cmake --version && ninja --version && qmake6 -query QT_VERSION
 
       - name: Configure
         run: |
@@ -48,7 +51,9 @@ jobs:
           cmake --build --preset ci --parallel "$build_jobs"
 
       - name: Test
-        run: ctest --preset ci --output-on-failure
+        run: |
+          test "$(build/ci/sniplyngo --version)" = "sniplyngo $(cat VERSION)"
+          xvfb-run -a sh -c 'SNIPLYNGO_X11_TEST_DISPLAY="$DISPLAY" ctest --preset ci --output-on-failure'
 
       - name: Upload test logs on failure
         if: failure()

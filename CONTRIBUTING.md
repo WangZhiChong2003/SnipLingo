@@ -7,13 +7,14 @@ for the application structure and [the code of conduct](CODE_OF_CONDUCT.md) for 
 ## Build and test
 
 Install the [build and runtime dependencies](README.md#get-sniplingo). For development on Ubuntu,
-also install `clang-format-18`, `xvfb`, `xclip`, `dbus-daemon` and `libxcb-xtest0-dev`. The presets build
+also install `clang-format-18`, `xvfb`, `xauth`, `xclip`, `dbus-daemon` and `libxcb-xtest0-dev`. Clang-format
+18 can also be installed with `pip install clang-format==18.1.8` on Ubuntu 22.04. The presets build
 with tests enabled and require the Qt Test module from `qt6-base-dev`.
 
 ```sh
 cmake --preset dev
 cmake --build --preset dev --parallel "$(nproc --ignore=2)"
-ctest --preset dev --output-on-failure
+xvfb-run -a sh -c 'SNIPLYNGO_X11_TEST_DISPLAY="$DISPLAY" ctest --preset dev --output-on-failure'
 cmake --build --preset dev --target format-check
 ```
 

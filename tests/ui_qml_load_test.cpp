@@ -12,6 +12,8 @@
 #include <QWindow>
 #include <QtTest>
 
+#include "support/window_snapshot.h"
+
 namespace {
 
 class StubController : public QObject {
@@ -115,9 +117,8 @@ void UiQmlLoadTest::resultWindowCompilesAndFollowsTheController() {
     QCOMPARE(window->property("stateKey").toString(), QStringLiteral("done"));
     QVERIFY(window->property("hasResult").toBool());
     QTest::qWait(50);
-    QVERIFY(qobject_cast<QQuickWindow *>(window.get())
-                ->grabWindow()
-                .save(QDir::tempPath() + QStringLiteral("/sniplyngo-result-window.png")));
+    QVERIFY(saveWindowSnapshot(qobject_cast<QQuickWindow *>(window.get()),
+        QDir::tempPath() + QStringLiteral("/sniplyngo-result-window.png")));
     QVERIFY(QMetaObject::invokeMethod(window.get(), "activateForInteraction"));
     QTRY_VERIFY(window->property("interactive").toBool());
     controller.m_translatedText = QString(800, QChar(0x4f60));
@@ -130,9 +131,8 @@ void UiQmlLoadTest::resultWindowCompilesAndFollowsTheController() {
     const QObject *text = window->findChild<QObject *>(QStringLiteral("translatedText"));
     QVERIFY(text);
     QVERIFY(text->property("contentHeight").toReal() > grownHeight);
-    QVERIFY(qobject_cast<QQuickWindow *>(window.get())
-                ->grabWindow()
-                .save(QDir::tempPath() + QStringLiteral("/sniplyngo-result-window-grown.png")));
+    QVERIFY(saveWindowSnapshot(qobject_cast<QQuickWindow *>(window.get()),
+        QDir::tempPath() + QStringLiteral("/sniplyngo-result-window-grown.png")));
 
     controller.m_stateKey = QStringLiteral("error");
     controller.m_errorKey = QStringLiteral("ProviderRateLimited");
@@ -192,8 +192,8 @@ void UiQmlLoadTest::selectionButtonRevealsOnHover() {
     QVERIFY(button != nullptr);
     QVERIFY(!button->property("iconSource").toString().isEmpty());
     if (!xwayland) {
-        QVERIFY(window->grabWindow().save(
-            QDir::tempPath() + QStringLiteral("/sniplyngo-selection-icon.png")));
+        QVERIFY(saveWindowSnapshot(
+            window, QDir::tempPath() + QStringLiteral("/sniplyngo-selection-icon.png")));
     }
     QTest::mouseMove(window, QPoint(window->width() / 2, window->height() / 2));
     QTRY_VERIFY(object->property("showingCard").toBool());
@@ -376,7 +376,7 @@ void UiQmlLoadTest::pinnedCardSurvivesFocusLossAndPointerLeave() {
     QTRY_VERIFY(object->property("pinned").toBool());
     QCOMPARE(pin->property("iconSource").toString(), QStringLiteral("qrc:/icons/pin-filled.svg"));
     QVERIFY(
-        window->grabWindow().save(QDir::tempPath() + QStringLiteral("/sniplyngo-pin-active.png")));
+        saveWindowSnapshot(window, QDir::tempPath() + QStringLiteral("/sniplyngo-pin-active.png")));
     // The pin click is an interaction: the window takes focus and arms focus-loss dismissal.
     QTRY_VERIFY(object->property("activatedForDismissal").toBool());
 

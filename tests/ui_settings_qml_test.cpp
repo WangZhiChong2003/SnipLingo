@@ -10,6 +10,8 @@
 #include <QScopeGuard>
 #include <QStringList>
 
+#include "support/window_snapshot.h"
+
 namespace {
 // QML type and binding errors are warnings, not failures: collect them so a test can assert none
 // happened.
@@ -348,8 +350,8 @@ void UiSettingsQmlTest::interfaceScaleChoosersFollowAndApplyTheController() {
     QTRY_COMPARE(controller.m_uiScale, 1.5);
     QTRY_COMPARE(window->property("width").toInt(), 1305);  // Math.round(870 * 1.5)
     QTRY_VERIFY(zoomCombo->property("currentIndex").toInt() == 3);
-    QVERIFY(quickWindow->grabWindow().save(
-        QDir::tempPath() + QStringLiteral("/sniplyngo-settings-zoom.png")));
+    QVERIFY(saveWindowSnapshot(
+        quickWindow, QDir::tempPath() + QStringLiteral("/sniplyngo-settings-zoom.png")));
 }
 
 void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
@@ -499,9 +501,8 @@ void UiSettingsQmlTest::consentDialogIsVisibleAndSized() {
     QVERIFY(dialog->property("width").toInt() > 300);
     QVERIFY(dialog->property("height").toInt() > 100);
     QTest::qWait(50);
-    QVERIFY(qobject_cast<QQuickWindow *>(window.get())
-                ->grabWindow()
-                .save(QDir::tempPath() + QStringLiteral("/sniplyngo-consent-window.png")));
+    QVERIFY(saveWindowSnapshot(qobject_cast<QQuickWindow *>(window.get()),
+        QDir::tempPath() + QStringLiteral("/sniplyngo-consent-window.png")));
     QTest::keyClick(qobject_cast<QQuickWindow *>(window.get()), Qt::Key_Escape);
     QTRY_VERIFY(!dialog->property("visible").toBool());
     QVERIFY(!controller.m_consentGranted);
@@ -575,8 +576,8 @@ void UiSettingsQmlTest::darkPaletteKeepsDialogReadable() {
     QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
     QTRY_VERIFY(dialog->property("visible").toBool());
     QTest::qWait(50);
-    QVERIFY(quickWindow->grabWindow().save(
-        QDir::tempPath() + QStringLiteral("/sniplyngo-consent-dark.png")));
+    QVERIFY(saveWindowSnapshot(
+        quickWindow, QDir::tempPath() + QStringLiteral("/sniplyngo-consent-dark.png")));
 }
 
 void UiSettingsQmlTest::cleanup() {
@@ -627,8 +628,8 @@ void UiSettingsQmlTest::openingTheLanguageChooserRaisesNoQmlErrors() {
     QVERIFY(QMetaObject::invokeMethod(popup, "open"));
     QTRY_VERIFY(popup->property("visible").toBool());
     QTest::qWait(100);
-    QVERIFY(quickWindow->grabWindow().save(
-        QDir::tempPath() + QStringLiteral("/sniplyngo-language-popup.png")));
+    QVERIFY(saveWindowSnapshot(
+        quickWindow, QDir::tempPath() + QStringLiteral("/sniplyngo-language-popup.png")));
     combo->setProperty("currentIndex", 1);
     QTest::qWait(50);
 
@@ -742,7 +743,7 @@ void UiSettingsQmlTest::settingsWindowLoads() {
         QTest::qWait(150);
         const QString rendered
             = QDir::tempPath() + QStringLiteral("/sniplyngo-settings-window.png");
-        QVERIFY2(quickWindow->grabWindow().save(rendered), qPrintable(rendered));
+        QVERIFY2(saveWindowSnapshot(quickWindow, rendered), qPrintable(rendered));
     }
     QCOMPARE(window->property("needsConsent").toBool(), true);
 
@@ -801,7 +802,7 @@ void UiSettingsQmlTest::engineControlsStayReachableOnceOneEngineExists() {
         QTest::qWait(150);
         const QString rendered
             = QDir::tempPath() + QStringLiteral("/sniplyngo-settings-window.png");
-        QVERIFY2(quickWindow->grabWindow().save(rendered), qPrintable(rendered));
+        QVERIFY2(saveWindowSnapshot(quickWindow, rendered), qPrintable(rendered));
     }
 
     QObject *newEngine = window->findChild<QObject *>(QStringLiteral("newEngineButton"));
@@ -821,7 +822,7 @@ void UiSettingsQmlTest::engineControlsStayReachableOnceOneEngineExists() {
         QTest::qWait(150);
         const QString rendered
             = QDir::tempPath() + QStringLiteral("/sniplyngo-settings-expanded.png");
-        QVERIFY2(quickWindow->grabWindow().save(rendered), qPrintable(rendered));
+        QVERIFY2(saveWindowSnapshot(quickWindow, rendered), qPrintable(rendered));
     }
 }
 

@@ -1,8 +1,14 @@
 # Changelog
 
-User-visible changes are listed here. See [the README](README.md) for the current preview and setup.
+User-visible changes are listed here. See [the README](README.md) for installation and setup.
 
 ## Unreleased
+
+## 1.0.0
+
+### Changed
+
+- Support builds on Ubuntu 22.04 using its system Qt 6.2.4 packages.
 
 ### Added
 
