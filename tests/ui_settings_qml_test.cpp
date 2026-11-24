@@ -1,5 +1,7 @@
 // Settings window + consent sheet load offscreen with a stub controller: catches QML errors and
 // verifies the privacy wording switches with the consent state.
+#include "ui/settings_controller.h"
+
 #include <QGuiApplication>
 #include <QPalette>
 #include <QQmlComponent>
@@ -9,6 +11,7 @@
 #include <QQuickWindow>
 #include <QScopeGuard>
 #include <QStringList>
+#include <QTranslator>
 
 #include "support/window_snapshot.h"
 
@@ -224,6 +227,8 @@ private slots:
     void settingsWindowSurvivesANullController();
     void engineControlsStayReachableOnceOneEngineExists();
     void engineCatalogRequiresExplicitChoice();
+    void addingEngineRequiresConfirmationWhenAutomaticSendingNeedsConsent_data();
+    void addingEngineRequiresConfirmationWhenAutomaticSendingNeedsConsent();
     void aboutUsesTheApplicationVersion_data();
     void aboutUsesTheApplicationVersion();
     void openingTheLanguageChooserRaisesNoQmlErrors();
@@ -365,9 +370,20 @@ void UiSettingsQmlTest::interfaceScaleChoosersFollowAndApplyTheController() {
 }
 
 void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
+    Q_INIT_RESOURCE(sniplyngo_runtime_translations);
+    QTranslator translator;
+    QVERIFY(translator.load(QStringLiteral(":/i18n/sniplyngo_zh_CN.qm")));
+    QVERIFY(QCoreApplication::installTranslator(&translator));
     QQmlEngine engine;
     StubSettings controller;
     controller.m_uiLanguage = QStringLiteral("zh-Hans");
+    connect(&controller, &StubSettings::changed, &engine, [&] {
+        if (controller.m_uiLanguage == QStringLiteral("zh-Hans"))
+            QCoreApplication::installTranslator(&translator);
+        else
+            QCoreApplication::removeTranslator(&translator);
+        engine.retranslate();
+    });
     QQmlComponent component(
         &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/SettingsWindow.qml")));
     QVERIFY2(component.isReady(), qPrintable(component.errorString()));
@@ -383,7 +399,7 @@ void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
     auto *languageCombo = window->findChild<QQuickItem *>(QStringLiteral("uiLanguageCombo"));
     QVERIFY(languageCombo != nullptr);
     QVERIFY(languageCombo->isVisible());
-    QCOMPARE(languageCombo->property("currentIndex").toInt(), 2);  // Simplified Chinese
+    QCOMPARE(languageCombo->property("displayText").toString(), QStringLiteral("简体中文"));
 
     QObject *popup = languageCombo->property("popup").value<QObject *>();
     QVERIFY(popup != nullptr);
@@ -394,7 +410,17 @@ void UiSettingsQmlTest::uiLanguageChooserFollowsAndAppliesTheController() {
     QTest::keyClick(quickWindow, Qt::Key_Up);
     QTest::keyClick(quickWindow, Qt::Key_Return);
     QTRY_COMPARE(controller.m_uiLanguage, QStringLiteral("en"));
-    QTRY_VERIFY(languageCombo->property("currentIndex").toInt() == 1);
+    QCOMPARE(languageCombo->property("displayText").toString(), QStringLiteral("English"));
+
+    QTest::keyClick(quickWindow, Qt::Key_Space);
+    QTRY_VERIFY(popup->property("visible").toBool());
+    QTest::keyClick(quickWindow, Qt::Key_Down);
+    QTest::keyClick(quickWindow, Qt::Key_Return);
+    QTRY_COMPARE(controller.m_uiLanguage, QStringLiteral("zh-Hans"));
+    QCOMPARE(languageCombo->property("displayText").toString(), QStringLiteral("简体中文"));
+
+    controller.setUiLanguage(QStringLiteral("system"));
+    QCOMPARE(languageCombo->property("displayText").toString(), QStringLiteral("Follow system"));
 }
 
 void UiSettingsQmlTest::xwaylandPopupToggleExplainsRestart() {
@@ -506,6 +532,10 @@ void UiSettingsQmlTest::consentDialogIsVisibleAndSized() {
     qobject_cast<QQuickWindow *>(window.get())->show();
     QObject *dialog = window->findChild<QObject *>(QStringLiteral("consentDialog"));
     QVERIFY(dialog != nullptr);
+    auto *frame = window->findChild<QQuickItem *>(QStringLiteral("windowFrame"));
+    auto *background = dialog->property("background").value<QQuickItem *>();
+    QVERIFY(frame && background);
+    QCOMPARE(background->property("radius").toReal(), frame->property("radius").toReal());
     QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
     QTRY_VERIFY(dialog->property("visible").toBool());
     QVERIFY(dialog->property("width").toInt() > 300);
@@ -764,13 +794,11 @@ void UiSettingsQmlTest::settingsWindowLoads() {
 
 void UiSettingsQmlTest::consentSheetLoads() {
     QQmlEngine engine;
-    StubSettings controller;
     QQmlComponent component(
         &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/ConsentSheet.qml")));
     QVERIFY2(component.isReady(), qPrintable(component.errorString()));
     QScopedPointer<QObject> sheet(component.create());
     QVERIFY2(sheet, qPrintable(component.errorString()));
-    sheet->setProperty("controller", QVariant::fromValue(&controller));
     sheet->setProperty("destination", QStringLiteral("api.example.com"));
     QCOMPARE(sheet->property("destination").toString(), QStringLiteral("api.example.com"));
 }
@@ -864,6 +892,97 @@ void UiSettingsQmlTest::engineCatalogRequiresExplicitChoice() {
     QVERIFY(QMetaObject::invokeMethod(deepL, "clicked"));
     QCOMPARE(controller.m_addedPreset, QStringLiteral("deepl"));
     QCOMPARE(controller.m_activeProviderId, QStringLiteral("deepl"));
+}
+
+void UiSettingsQmlTest::addingEngineRequiresConfirmationWhenAutomaticSendingNeedsConsent_data() {
+    QTest::addColumn<QString>("category");
+    QTest::addColumn<QString>("engineId");
+    QTest::addColumn<bool>("unofficial");
+    QTest::newRow("public API") << QStringLiteral("engineCategory1") << QStringLiteral("mymemory")
+                                << false;
+    QTest::newRow("web translation")
+        << QStringLiteral("engineCategory3") << QStringLiteral("youdao") << true;
+}
+
+void UiSettingsQmlTest::addingEngineRequiresConfirmationWhenAutomaticSendingNeedsConsent() {
+    QFETCH(QString, category);
+    QFETCH(QString, engineId);
+    QFETCH(bool, unofficial);
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const auto paths = [&] {
+        const QList<QByteArray> keys {"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"};
+        QList<QByteArray> previous;
+        for (const QByteArray &key : keys) {
+            previous.append(qgetenv(key.constData()));
+            qputenv(key.constData(), temporary.path().toLocal8Bit());
+        }
+        const auto restoreEnvironment = qScopeGuard([&] {
+            for (qsizetype i = 0; i < keys.size(); ++i) {
+                if (previous[i].isNull())
+                    qunsetenv(keys[i].constData());
+                else
+                    qputenv(keys[i].constData(), previous[i]);
+            }
+        });
+        return core::XdgPaths::resolve();
+    }();
+    settings::SettingsStore store(paths);
+    auto secretStore = secrets::createSecretStore(secrets::ServiceProbe {});
+    ui::SettingsController controller(&store, secretStore.get(), nullptr);
+    QVERIFY(controller.addPresetEngine(QStringLiteral("libretranslate"))
+                .value(QStringLiteral("ok"))
+                .toBool());
+    QVERIFY(store.setAutomaticEnabled(true).ok());
+
+    QQmlEngine engine;
+    QQmlComponent component(
+        &engine, QUrl::fromLocalFile(QStringLiteral(SNIPLYNGO_QML_DIR "/SettingsWindow.qml")));
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> window(component.create());
+    QVERIFY2(window, qPrintable(component.errorString()));
+    window->setProperty("settingsController", QVariant::fromValue(&controller));
+    window->setProperty("showPreferences", true);
+    window->setProperty("showAddEngine", true);
+    auto *quickWindow = qobject_cast<QQuickWindow *>(window.get());
+    quickWindow->show();
+
+    QQuickItem *categoryButton = nullptr;
+    QTRY_VERIFY((categoryButton = visibleItem(quickWindow->contentItem(), category)) != nullptr);
+    QVERIFY(QMetaObject::invokeMethod(categoryButton, "clicked"));
+    QCOMPARE(visibleItem(quickWindow->contentItem(), QStringLiteral("webEngineWarning")) != nullptr,
+        unofficial);
+    const QString addButtonName = QStringLiteral("addPreset-") + engineId;
+    QQuickItem *addButton = nullptr;
+    QTRY_VERIFY((addButton = visibleItem(quickWindow->contentItem(), addButtonName)) != nullptr);
+    QObject *dialog = window->findChild<QObject *>(QStringLiteral("consentDialog"));
+    QVERIFY(dialog);
+    QVERIFY(QMetaObject::invokeMethod(addButton, "clicked"));
+    QTRY_VERIFY(dialog->property("visible").toBool());
+    QCOMPARE(store.current().provider.providers.size(), 1);
+    QObject *warning = window->findChild<QObject *>(QStringLiteral("unofficialConsentWarning"));
+    QVERIFY(warning);
+    QCOMPARE(warning->property("visible").toBool(), unofficial);
+
+    QObject *cancel = window->findChild<QObject *>(QStringLiteral("cancelConsentButton"));
+    QVERIFY(cancel);
+    QVERIFY(QMetaObject::invokeMethod(cancel, "clicked"));
+    QTRY_VERIFY(!dialog->property("addingEngine").toBool());
+    QCOMPARE(controller.activeProviderId(), QStringLiteral("libretranslate"));
+    settings::SettingsStore reopened(paths);
+    QCOMPARE(reopened.load().settings.provider.providers.size(), 1);
+
+    QVERIFY(QMetaObject::invokeMethod(addButton, "clicked"));
+    QTRY_VERIFY(dialog->property("visible").toBool());
+    QObject *allow = window->findChild<QObject *>(QStringLiteral("allowConsentButton"));
+    QVERIFY(allow);
+    QVERIFY(QMetaObject::invokeMethod(allow, "clicked"));
+    QTRY_VERIFY(!dialog->property("visible").toBool());
+    QCOMPARE(controller.activeProviderId(), engineId);
+    const settings::Settings saved = reopened.load().settings;
+    QCOMPARE(saved.provider.providers.size(), 2);
+    QCOMPARE(saved.provider.activeId, engineId);
+    QVERIFY(saved.mayAutoSend());
 }
 
 void UiSettingsQmlTest::aboutUsesTheApplicationVersion_data() {

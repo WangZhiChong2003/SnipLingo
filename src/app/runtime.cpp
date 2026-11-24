@@ -178,9 +178,7 @@ bool Application::prepare() {
         [this](const core::Error &error) { reportNotice(error); });
 
     loadWindows();
-    // A saved enabled preference must re-establish the subscription on each start.
-    if (settings->current().selection.automaticEnabled && !settings->current().selection.paused)
-        settingsController->setAutomaticEnabled(true);
+    settingsController->restoreAutomaticSelection();
     return true;
 }
 

@@ -9,8 +9,9 @@
 - `src/coordinator/` handles manual and selection requests, checks consent before automatic remote
   sending, and cancels superseded work so an older reply cannot replace a newer result.
 - `src/provider/` translates through the configured service. `src/settings/` stores preferences
-  and the consent record. `src/secrets/` handles credentials through the desktop keyring or
-  session-only storage when persistent storage is unavailable.
+  and consent records keyed by destination fingerprint. Existing settings with a single consent
+  record are imported into the list when loaded. `src/secrets/` handles credentials through the
+  desktop keyring or session-only storage when persistent storage is unavailable.
 - `src/ui/` presents the main window, floating result and tray menu using Qt and QML.
 
 Use [the contribution guide](../CONTRIBUTING.md) to build and test changes, and [the Linux guide](linux-integration.md)

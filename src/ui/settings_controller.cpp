@@ -4,6 +4,8 @@
 
 #include <QRegularExpression>
 
+#include <utility>
+
 #include "provider/simple_translate_provider.h"
 
 namespace ui {
@@ -38,6 +40,22 @@ QVariantMap success(const QString &id = {}) {
     result.insert(QStringLiteral("ok"), true);
     result.insert(QStringLiteral("id"), id);
     return result;
+}
+
+bool usesUnofficialEndpoint(const QString &type) {
+    return type == QLatin1String("google-free") || type == QLatin1String("bing-free")
+        || type == QLatin1String("youdao") || type == QLatin1String("huoshanweb");
+}
+
+QString engineDisplayName(const settings::ProviderConfig &config) {
+    // Recognize the old web preset names while preserving user-defined labels.
+    const auto suffix = QLatin1String(" (unofficial)");
+    if (config.label.endsWith(suffix) && usesUnofficialEndpoint(config.type)) {
+        const QString name = provider::simplePreset(config.type).label;
+        if (config.label == name + suffix)
+            return name;
+    }
+    return config.label;
 }
 
 }  // namespace
@@ -148,7 +166,7 @@ void SettingsController::cancelSelectionTest() {
 }
 
 void SettingsController::requestConsent() {
-    emit consentRequired(consentDestination(), m_store->current().consent.valid());
+    emit consentRequired(consentDestination(), !m_store->current().consents.isEmpty());
 }
 
 bool SettingsController::waylandSession() const {
@@ -189,12 +207,13 @@ QVariantList SettingsController::providers() const {
     for (const settings::ProviderConfig &provider : m_store->current().provider.providers) {
         QVariantMap entry;
         entry.insert(QStringLiteral("id"), provider.id);
-        entry.insert(QStringLiteral("label"), provider.label);
+        entry.insert(QStringLiteral("label"), engineDisplayName(provider));
         entry.insert(QStringLiteral("host"), provider.host());
         entry.insert(QStringLiteral("baseUrl"), provider.baseUrl);
         entry.insert(QStringLiteral("model"), provider.model);
         entry.insert(QStringLiteral("isLocal"), provider.isLocal());
         entry.insert(QStringLiteral("type"), provider.type);
+        entry.insert(QStringLiteral("unofficial"), usesUnofficialEndpoint(provider.type));
         const bool libre = provider.type == QLatin1String("libretranslate");
         const bool deepL = provider.type == QLatin1String("deepl");
         entry.insert(QStringLiteral("needsApiKey"),
@@ -214,7 +233,7 @@ bool SettingsController::consentGranted() const {
     if (provider == nullptr)
         return false;
     // Local engines never need consent, so nothing is pending for them.
-    return provider->isLocal() || current.consent.fingerprint == provider->fingerprint();
+    return provider->isLocal() || current.hasConsentFor(provider->fingerprint());
 }
 
 bool SettingsController::consentStale() const {
@@ -222,7 +241,7 @@ bool SettingsController::consentStale() const {
     const settings::ProviderConfig *provider = current.activeProvider();
     if (provider == nullptr || provider->isLocal())
         return false;  // local engines never need consent
-    return current.consent.fingerprint != provider->fingerprint();
+    return !current.hasConsentFor(provider->fingerprint());
 }
 
 QString SettingsController::consentDestination() const {
@@ -276,7 +295,16 @@ QVariantMap SettingsController::setProxy(const QString &mode, const QString &url
     return success();
 }
 
+void SettingsController::restoreAutomaticSelection() {
+    if (automaticEnabled() && !paused())
+        setAutomaticEnabled(true, false);
+}
+
 void SettingsController::setAutomaticEnabled(bool enabled) {
+    setAutomaticEnabled(enabled, true);
+}
+
+void SettingsController::setAutomaticEnabled(bool enabled, bool askForConsent) {
     if (m_coordinator != nullptr && !enabled) {
         m_coordinator->disableAutomatic();
         return;
@@ -289,7 +317,7 @@ void SettingsController::setAutomaticEnabled(bool enabled) {
             m_store->setAutomaticEnabled(false);
         reportError(result.error());
         emit changed();
-    } else if (m_coordinator != nullptr) {
+    } else if (askForConsent && m_coordinator != nullptr) {
         m_coordinator->recheckConsent();
     }
 }
@@ -443,15 +471,20 @@ QString SettingsController::uniqueProviderId(const QString &label) const {
 
 QVariantMap SettingsController::addProvider(
     const QString &label, const QString &baseUrl, const QString &model) {
-    settings::Settings next = m_store->current();
     settings::ProviderConfig provider;
     provider.id = uniqueProviderId(label.isEmpty() ? baseUrl : label);
     provider.label = label.isEmpty() ? provider.id : label;
     provider.baseUrl = baseUrl;
     provider.model = model;
     provider.apiKeyRef = QStringLiteral("provider/%1/apiKey").arg(provider.id);
+    return addEngine(provider);
+}
+
+QVariantMap SettingsController::addEngine(
+    const settings::ProviderConfig &provider, bool consentApproved) {
+    settings::Settings next = m_store->current();
     next.provider.providers.append(provider);
-    if (next.provider.activeId.isEmpty())
+    if (next.provider.activeId.isEmpty() || consentApproved)
         next.provider.activeId = provider.id;
 
     QStringList issues;
@@ -460,6 +493,20 @@ QVariantMap SettingsController::addProvider(
         || issues.contains(QStringLiteral("provider.baseUrl(http-remote)")))
         return failure({core::ErrorCode::SettingsInvalid,
             QStringLiteral("use HTTPS, or HTTP for a local address")});
+    if (issues.contains(QStringLiteral("provider.id")))
+        return failure(
+            {core::ErrorCode::SettingsInvalid, QStringLiteral("invalid or duplicate engine ID")});
+
+    if (consentApproved) {
+        // Publish the new engine and its grant in the same settings update.
+        next.recordConsent(provider);
+    } else if (next.selection.automaticEnabled && !next.selection.paused && !provider.isLocal()
+        && !next.hasConsentFor(provider.fingerprint())) {
+        m_pendingEngine = provider;
+        return {{QStringLiteral("ok"), true}, {QStringLiteral("requiresConsent"), true},
+            {QStringLiteral("destination"), provider.destinationLabel()},
+            {QStringLiteral("unofficial"), usesUnofficialEndpoint(provider.type)}};
+    }
 
     const core::Result<void> saved = m_store->save(next);
     if (!saved.ok())
@@ -503,16 +550,19 @@ QVariantMap SettingsController::addPresetEngine(const QString &type) {
     settings::ProviderConfig preset = provider::simplePreset(type);
     if (findProvider(preset.id) != nullptr)
         preset.id = uniqueProviderId(preset.id);
+    return addEngine(preset);
+}
 
-    settings::Settings next = m_store->current();
-    next.provider.providers.append(preset);
-    if (next.provider.activeId.isEmpty())
-        next.provider.activeId = preset.id;
+QVariantMap SettingsController::confirmPendingEngine() {
+    const auto pending = std::exchange(m_pendingEngine, std::nullopt);
+    if (!pending)
+        return failure(
+            {core::ErrorCode::SettingsInvalid, QStringLiteral("no engine awaiting approval")});
+    return addEngine(*pending, true);
+}
 
-    const core::Result<void> saved = m_store->save(next);
-    if (!saved.ok())
-        return failure(saved.error());
-    return success(preset.id);
+void SettingsController::cancelPendingEngine() {
+    m_pendingEngine.reset();
 }
 
 QVariantMap SettingsController::updateProvider(const QString &id, const QVariantMap &fields) {

@@ -133,15 +133,18 @@ core::Result<void> SettingsStore::grantConsent() {
             QStringLiteral("no active provider to consent to")};
     }
     Settings next = m_settings;
-    next.consent.fingerprint = active->fingerprint();
-    next.consent.destinationLabel = active->destinationLabel();
-    next.consent.grantedAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    next.recordConsent(*active);
     return persist(next);
 }
 
 core::Result<void> SettingsStore::revokeConsent() {
+    const ProviderConfig *active = m_settings.activeProvider();
+    if (active == nullptr)
+        return {};
+    const QString fingerprint = active->fingerprint();
     Settings next = m_settings;
-    next.consent = ConsentRecord {};
+    next.consents.removeIf(
+        [&](const ConsentRecord &record) { return record.fingerprint == fingerprint; });
     return persist(next);
 }
 

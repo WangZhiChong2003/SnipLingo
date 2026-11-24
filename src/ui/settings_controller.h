@@ -10,6 +10,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <optional>
+
 #include "coordinator/request_coordinator.h"
 #include "secrets/secret_store.h"
 #include "settings/settings_store.h"
@@ -82,6 +84,8 @@ public:
     [[nodiscard]] QString proxyUrl() const;
     [[nodiscard]] QString proxyEffective() const;
 
+    void restoreAutomaticSelection();
+
 public slots:
     void setAutomaticEnabled(bool enabled);
     void setPaused(bool paused);
@@ -100,10 +104,11 @@ public slots:
     void cancelSelectionTest();
     void requestConsent();
 
-    // Returns {ok: bool, id: string, error: string}. `baseUrl` is validated by the settings layer.
+    // Returns an id on save, or requiresConsent and the destination details for a pending engine.
     QVariantMap addProvider(const QString &label, const QString &baseUrl, const QString &model);
-    // Adds an engine profile with its default endpoint.
     QVariantMap addPresetEngine(const QString &type);
+    QVariantMap confirmPendingEngine();
+    void cancelPendingEngine();
     QVariantMap updateProvider(const QString &id, const QVariantMap &fields);
     bool removeProvider(const QString &id);
 
@@ -128,16 +133,19 @@ signals:
     void failed(const QString &code, const QString &detail);
 
 private:
+    void setAutomaticEnabled(bool enabled, bool askForConsent);
     void refresh();
     void reportError(const core::Error &error);
     [[nodiscard]] const settings::ProviderConfig *findProvider(const QString &id) const;
     [[nodiscard]] QString uniqueProviderId(const QString &label) const;
+    QVariantMap addEngine(const settings::ProviderConfig &provider, bool consentApproved = false);
     core::Result<void> applyProviderChange(const QString &id, const QVariantMap &fields);
 
     settings::SettingsStore *m_store = nullptr;
     secrets::SecretStore *m_secrets = nullptr;
     coordinator::RequestCoordinator *m_coordinator = nullptr;
     QStringList m_presentKeyRefs;
+    std::optional<settings::ProviderConfig> m_pendingEngine;
     QString m_initialSelectionBackend;
     bool m_initialXwaylandPopup = false;
 };

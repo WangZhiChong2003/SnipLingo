@@ -21,6 +21,7 @@ QtObject {
     readonly property color error: dark ? "#FF9A91" : "#BA3D37"
     readonly property color errorSoft: dark ? "#492B33" : "#FFF1EF"
 
+    readonly property int radiusWindowFrame: 10
     readonly property int radiusWindow: 16
     readonly property int radiusControl: 10
     readonly property int spacing: 12

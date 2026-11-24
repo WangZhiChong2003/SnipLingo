@@ -81,19 +81,19 @@ settings::ProviderConfig simplePreset(const QString &type) {
         config.baseUrl = QStringLiteral("https://api.deepl.com");
     } else if (type == QLatin1String("google-free")) {
         config.id = QStringLiteral("google-free");
-        config.label = QStringLiteral("Google Translate (unofficial)");
+        config.label = QStringLiteral("Google Translate");
         config.baseUrl = QStringLiteral("https://translate.googleapis.com");
     } else if (type == QLatin1String("bing-free")) {
         config.id = QStringLiteral("bing-free");
-        config.label = QStringLiteral("Bing Translator (unofficial)");
+        config.label = QStringLiteral("Bing Translator");
         config.baseUrl = QStringLiteral("https://edge.microsoft.com");
     } else if (type == QLatin1String("youdao")) {
         config.id = QStringLiteral("youdao");
-        config.label = QStringLiteral("Youdao (unofficial)");
+        config.label = QStringLiteral("Youdao");
         config.baseUrl = QStringLiteral("https://aidemo.youdao.com");
     } else if (type == QLatin1String("huoshanweb")) {
         config.id = QStringLiteral("huoshanweb");
-        config.label = QStringLiteral("Volcengine Web (unofficial)");
+        config.label = QStringLiteral("Volcengine Web");
         config.baseUrl = QStringLiteral("https://translate.volcengine.com");
     }
     return config;

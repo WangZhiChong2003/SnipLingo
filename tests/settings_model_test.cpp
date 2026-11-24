@@ -179,11 +179,11 @@ void SettingsModelTest::fingerprintChangesWithDestination() {
 
 void SettingsModelTest::consentMustBeAValidHash() {
     Settings settings = withProvider(remoteProvider());
-    settings.consent.fingerprint = QStringLiteral("not-a-hash");
+    settings.consents.append(ConsentRecord {QStringLiteral("not-a-hash"), {}, {}});
     QStringList issues;
     QVERIFY(validate(settings, &issues));
-    QVERIFY(!settings.consent.valid());
-    QVERIFY(issues.contains(QStringLiteral("consent.fingerprint")));
+    QVERIFY(settings.consents.isEmpty());
+    QVERIFY(issues.contains(QStringLiteral("consents.fingerprint")));
 }
 
 void SettingsModelTest::mayAutoSendTruthTable() {
@@ -213,17 +213,15 @@ void SettingsModelTest::mayAutoSendTruthTable() {
         Settings settings = withProvider(provider);
         settings.selection.automaticEnabled = row.enabled;
         settings.selection.paused = row.paused;
-        if (row.grantConsent) {
-            settings.consent.fingerprint = provider.fingerprint();
-            settings.consent.destinationLabel = provider.destinationLabel();
-        }
+        if (row.grantConsent)
+            settings.recordConsent(provider);
         QVERIFY2(settings.mayAutoSend() == row.expected, row.name);
     }
 
     // Consent for one destination must not authorise another.
     Settings changed = withProvider(remote);
     changed.selection.automaticEnabled = true;
-    changed.consent.fingerprint = remote.fingerprint();
+    changed.recordConsent(remote);
     QVERIFY(changed.mayAutoSend());
     changed.provider.providers.first().baseUrl = QStringLiteral("https://evil.example.com/v1");
     QVERIFY(!changed.mayAutoSend());
@@ -246,7 +244,7 @@ void SettingsModelTest::jsonRoundTripPreservesKnownFields() {
     settings.selection.showResultImmediately = true;
     settings.selection.xwaylandPopup = true;
     settings.language.source = QStringLiteral("en");
-    settings.consent.fingerprint = remoteProvider().fingerprint();
+    settings.recordConsent(remoteProvider());
     settings.ui.theme = QStringLiteral("dark");
     settings.ui.language = QStringLiteral("zh-Hans");
 
@@ -258,7 +256,7 @@ void SettingsModelTest::jsonRoundTripPreservesKnownFields() {
     QCOMPARE(loaded.settings.language.source, QStringLiteral("en"));
     QCOMPARE(loaded.settings.provider.providers.size(), 1);
     QCOMPARE(loaded.settings.provider.activeId, QStringLiteral("openai-main"));
-    QCOMPARE(loaded.settings.consent.fingerprint, remoteProvider().fingerprint());
+    QVERIFY(loaded.settings.hasConsentFor(remoteProvider().fingerprint()));
     QCOMPARE(loaded.settings.ui.theme, QStringLiteral("dark"));
     QCOMPARE(loaded.settings.ui.language, QStringLiteral("zh-Hans"));
     QVERIFY(loaded.issues.isEmpty());

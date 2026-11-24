@@ -25,10 +25,14 @@ private slots:
     void localEngineNeedsNoConsent();
     void consentFollowsTheDestinationFingerprint();
     void consentRequiredIsForwarded();
+    void restoringAutomaticSelectionDoesNotRequestConsent();
     void changingEngineRequestsConsentOnce();
+    void changingUiLanguageDoesNotRequestConsentAgain();
     void apiKeyIsStoredWithoutBeingExposed();
     void removingTheActiveProviderSelectsAnother();
     void keylessPresetsNeedNoCredential();
+    void webEnginesUseProviderNames_data();
+    void webEnginesUseProviderNames();
     void proxyIsValidatedAndPersisted();
     void automaticControlsManageTheSubscription();
     void automaticCanBeEnabledDuringAnExplicitTranslation();
@@ -280,6 +284,24 @@ void SettingsControllerTest::consentRequiredIsForwarded() {
     QVERIFY(m_controller->automaticEnabled());
 }
 
+void SettingsControllerTest::restoringAutomaticSelectionDoesNotRequestConsent() {
+    QVERIFY(m_controller->addPresetEngine(QStringLiteral("huoshanweb"))
+                .value(QStringLiteral("ok"))
+                .toBool());
+    QVERIFY(m_store->setAutomaticEnabled(true).ok());
+    QSignalSpy consent(m_controller.get(), &SettingsController::consentRequired);
+
+    m_controller->restoreAutomaticSelection();
+    QCOMPARE(m_backend->subscribeCalls, 1);
+    QVERIFY(m_controller->observationActive());
+    QVERIFY(!m_controller->consentGranted());
+    QCOMPARE(consent.count(), 0);
+
+    m_controller->requestConsent();
+    QCOMPARE(consent.count(), 1);
+    QCOMPARE(consent.first().at(0).toString(), QStringLiteral("translate.volcengine.com"));
+}
+
 void SettingsControllerTest::apiKeyIsStoredWithoutBeingExposed() {
     const QVariantMap remote = m_controller->addProvider(QStringLiteral("Example"),
         QStringLiteral("https://api.example.com/v1"), QStringLiteral("gpt-4o-mini"));
@@ -317,6 +339,38 @@ void SettingsControllerTest::changingEngineRequestsConsentOnce() {
     consent.clear();
     m_controller->setActiveProvider(memory.value(QStringLiteral("id")).toString());
     QCOMPARE(consent.size(), 1);
+
+    m_controller->grantConsent();
+    consent.clear();
+    m_controller->setActiveProvider(google.value(QStringLiteral("id")).toString());
+    QVERIFY(m_controller->consentGranted());
+    m_controller->setActiveProvider(memory.value(QStringLiteral("id")).toString());
+    QVERIFY(m_controller->consentGranted());
+    QCOMPARE(consent.size(), 0);
+}
+
+void SettingsControllerTest::changingUiLanguageDoesNotRequestConsentAgain() {
+    QVERIFY(m_controller->addPresetEngine(QStringLiteral("google-free"))
+                .value(QStringLiteral("ok"))
+                .toBool());
+    const QVariantMap bing = m_controller->addPresetEngine(QStringLiteral("bing-free"));
+    QVERIFY(bing.value(QStringLiteral("ok")).toBool());
+    m_controller->setAutomaticEnabled(true);
+    m_controller->grantConsent();
+    QVERIFY(m_controller->consentGranted());
+
+    QSignalSpy consent(m_controller.get(), &SettingsController::consentRequired);
+    m_controller->setActiveProvider(bing.value(QStringLiteral("id")).toString());
+    QCOMPARE(consent.count(), 1);
+    QCOMPARE(consent.first().at(0).toString(), QStringLiteral("edge.microsoft.com"));
+    QVERIFY(consent.first().at(1).toBool());
+    consent.clear();
+
+    m_controller->setUiLanguage(QStringLiteral("zh-Hans"));
+    QCOMPARE(m_controller->uiLanguage(), QStringLiteral("zh-Hans"));
+    QCOMPARE(consent.count(), 0);
+    QVERIFY(m_controller->observationActive());
+    QVERIFY(!m_controller->consentGranted());
 }
 
 void SettingsControllerTest::removingTheActiveProviderSelectsAnother() {
@@ -356,6 +410,37 @@ void SettingsControllerTest::keylessPresetsNeedNoCredential() {
 
     const QVariantMap unknown = m_controller->addPresetEngine(QStringLiteral("nope"));
     QCOMPARE(unknown.value(QStringLiteral("ok")).toBool(), false);
+}
+
+void SettingsControllerTest::webEnginesUseProviderNames_data() {
+    QTest::addColumn<QString>("type");
+    QTest::addColumn<QString>("name");
+    QTest::newRow("google") << QStringLiteral("google-free") << QStringLiteral("Google Translate");
+    QTest::newRow("bing") << QStringLiteral("bing-free") << QStringLiteral("Bing Translator");
+    QTest::newRow("youdao") << QStringLiteral("youdao") << QStringLiteral("Youdao");
+    QTest::newRow("volcengine") << QStringLiteral("huoshanweb") << QStringLiteral("Volcengine Web");
+}
+
+void SettingsControllerTest::webEnginesUseProviderNames() {
+    QFETCH(QString, type);
+    QFETCH(QString, name);
+    const QString labelKey = QStringLiteral("label");
+    const QVariantMap added = m_controller->addPresetEngine(type);
+    QVERIFY(added.value(QStringLiteral("ok")).toBool());
+    const QString id = added.value(QStringLiteral("id")).toString();
+    QCOMPARE(m_controller->providers().first().toMap().value(labelKey).toString(), name);
+
+    const QString oldLabel = name + QStringLiteral(" (unofficial)");
+    QVERIFY(m_controller->updateProvider(id, {{labelKey, oldLabel}})
+                .value(QStringLiteral("ok"))
+                .toBool());
+    QCOMPARE(m_controller->providers().first().toMap().value(labelKey).toString(), name);
+
+    const QString customLabel = QStringLiteral("My web engine (unofficial)");
+    QVERIFY(m_controller->updateProvider(id, {{labelKey, customLabel}})
+                .value(QStringLiteral("ok"))
+                .toBool());
+    QCOMPARE(m_controller->providers().first().toMap().value(labelKey).toString(), customLabel);
 }
 
 void SettingsControllerTest::proxyIsValidatedAndPersisted() {

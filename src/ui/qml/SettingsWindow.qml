@@ -170,6 +170,13 @@ Window {
 
     function selectNewEngine(outcome) {
         showOutcome(outcome);
+        if (outcome.requiresConsent) {
+            consentSheet.addingEngine = true;
+            consentSheet.destination = outcome.destination;
+            consentSheet.unofficial = outcome.unofficial;
+            consentSheet.open();
+            return;
+        }
         if (outcome.ok) {
             showAddEngine = false;
             if (settingsController.activeProviderId !== outcome.id)
@@ -203,8 +210,11 @@ Window {
     Connections {
         target: root.settingsController
         function onConsentRequired(destinationLabel, staleConsent) {
+            if (consentSheet.addingEngine)
+                return;
             consentSheet.destination = destinationLabel;
             consentSheet.stale = staleConsent;
+            consentSheet.unofficial = root.activeProvider !== null && root.activeProvider.unofficial === true;
             root.show();
             root.raise();
             consentSheet.open();
@@ -224,7 +234,7 @@ Window {
         width: root.width / root.uiScale
         height: root.height / root.uiScale
         transform: Scale { xScale: root.uiScale; yScale: root.uiScale }
-        radius: 10
+        radius: theme.radiusWindowFrame
         color: theme.background
         border.width: 1
         border.color: theme.border
@@ -1005,9 +1015,8 @@ Window {
                                 { code: "en", name: "English" },
                                 { code: "zh-Hans", name: "简体中文" }
                             ]
-                            currentIndex: root.ready
-                                          ? Math.max(0, ["system", "en", "zh-Hans"].indexOf(root.settingsController.uiLanguage))
-                                          : 0
+                            // Match the language code again when retranslation rebuilds the model.
+                            currentValue: root.ready ? root.settingsController.uiLanguage : "system"
                             onActivated: if (root.ready) root.settingsController.setUiLanguage(currentValue)
                         }
                     }
@@ -1178,7 +1187,18 @@ Window {
         scale: root.uiScale
         width: Math.min(500, root.width / root.uiScale - 48)
         height: Math.min(implicitHeight, root.height / root.uiScale - 48)
-        controller: root.settingsController
         destination: root.ready ? root.settingsController.consentDestination : ""
+        onApproved: {
+            if (addingEngine)
+                root.selectNewEngine(root.settingsController.confirmPendingEngine());
+            else if (root.ready)
+                root.settingsController.grantConsent();
+        }
+        onClosed: {
+            if (addingEngine) {
+                root.settingsController.cancelPendingEngine();
+                addingEngine = false;
+            }
+        }
     }
 }

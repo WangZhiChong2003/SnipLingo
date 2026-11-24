@@ -1,4 +1,4 @@
-// Persisted preference document and consent record.
+// Persisted preferences and destination-specific consent records.
 #pragma once
 
 #include "core/result.h"
@@ -89,11 +89,13 @@ struct Settings {
     SelectionSettings selection;
     ProviderSettings provider;
     LanguageSettings language;
-    ConsentRecord consent;
+    QList<ConsentRecord> consents;
     NetworkSettings network;
     UiSettings ui;
 
     [[nodiscard]] const ProviderConfig *activeProvider() const;
+    [[nodiscard]] bool hasConsentFor(const QString &fingerprint) const;
+    void recordConsent(const ProviderConfig &destination);
     // Consent is required only for automatic sending to a non-local destination.
     [[nodiscard]] bool mayAutoSend() const;
 };

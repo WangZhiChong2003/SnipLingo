@@ -1,6 +1,7 @@
 #include "settings/settings.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
@@ -138,6 +139,19 @@ const ProviderConfig *Settings::activeProvider() const {
     return nullptr;
 }
 
+bool Settings::hasConsentFor(const QString &fingerprint) const {
+    return std::any_of(consents.cbegin(), consents.cend(),
+        [&](const ConsentRecord &record) { return record.fingerprint == fingerprint; });
+}
+
+void Settings::recordConsent(const ProviderConfig &destination) {
+    const QString fingerprint = destination.fingerprint();
+    if (!hasConsentFor(fingerprint)) {
+        consents.append(ConsentRecord {fingerprint, destination.destinationLabel(),
+            QDateTime::currentDateTimeUtc().toString(Qt::ISODate)});
+    }
+}
+
 bool Settings::mayAutoSend() const {
     if (!selection.automaticEnabled || selection.paused)
         return false;
@@ -146,7 +160,7 @@ bool Settings::mayAutoSend() const {
         return false;
     if (active->isLocal())
         return true;
-    return consent.valid() && consent.fingerprint == active->fingerprint();
+    return hasConsentFor(active->fingerprint());
 }
 
 // ---------------------------------------------------------------- serialization
@@ -176,10 +190,12 @@ QJsonObject toJson(const Settings &settings) {
     language[QStringLiteral("source")] = settings.language.source;
     language[QStringLiteral("target")] = settings.language.target;
 
-    QJsonObject consent;
-    consent[QStringLiteral("fingerprint")] = settings.consent.fingerprint;
-    consent[QStringLiteral("destinationLabel")] = settings.consent.destinationLabel;
-    consent[QStringLiteral("grantedAt")] = settings.consent.grantedAt;
+    QJsonArray consents;
+    for (const ConsentRecord &record : settings.consents) {
+        consents.append(QJsonObject {{QStringLiteral("fingerprint"), record.fingerprint},
+            {QStringLiteral("destinationLabel"), record.destinationLabel},
+            {QStringLiteral("grantedAt"), record.grantedAt}});
+    }
 
     QJsonObject network;
     network[QStringLiteral("proxy")] = settings.network.proxy;
@@ -197,7 +213,9 @@ QJsonObject toJson(const Settings &settings) {
     root[QStringLiteral("selection")] = selection;
     root[QStringLiteral("provider")] = provider;
     root[QStringLiteral("language")] = language;
-    root[QStringLiteral("consent")] = consent;
+    // Clear the legacy single grant when merging with an older document.
+    root[QStringLiteral("consent")] = QJsonValue::Null;
+    root[QStringLiteral("consents")] = consents;
     root[QStringLiteral("network")] = network;
     root[QStringLiteral("ui")] = ui;
     return root;
@@ -325,11 +343,10 @@ bool validate(Settings &settings, QStringList *issues) {
         settings.network.proxyUrl.clear();
     }
 
-    if (!settings.consent.fingerprint.isEmpty() && !isHexSha256(settings.consent.fingerprint)) {
-        if (issues)
-            issues->append(QStringLiteral("consent.fingerprint"));
-        settings.consent = ConsentRecord {};
-    }
+    const auto invalidConsents = settings.consents.removeIf(
+        [](const ConsentRecord &record) { return !isHexSha256(record.fingerprint); });
+    if (invalidConsents > 0 && issues)
+        issues->append(QStringLiteral("consents.fingerprint"));
 
     return usable;
 }
@@ -399,11 +416,20 @@ LoadResult loadFromDocument(const QJsonObject &document, bool documentWasReadabl
             settings.provider.providers.append(providerFromJson(value.toObject()));
     }
 
-    const QJsonObject consent = document.value(QStringLiteral("consent")).toObject();
-    settings.consent.fingerprint = consent.value(QStringLiteral("fingerprint")).toString();
-    settings.consent.destinationLabel
-        = consent.value(QStringLiteral("destinationLabel")).toString();
-    settings.consent.grantedAt = consent.value(QStringLiteral("grantedAt")).toString();
+    const auto readConsent = [](const QJsonObject &object) {
+        return ConsentRecord {object.value(QStringLiteral("fingerprint")).toString(),
+            object.value(QStringLiteral("destinationLabel")).toString(),
+            object.value(QStringLiteral("grantedAt")).toString()};
+    };
+    if (const QJsonValue saved = document.value(QStringLiteral("consents")); !saved.isUndefined()) {
+        for (const QJsonValue &value : saved.toArray())
+            settings.consents.append(readConsent(value.toObject()));
+    } else {
+        const ConsentRecord legacy
+            = readConsent(document.value(QStringLiteral("consent")).toObject());
+        if (legacy.valid())
+            settings.consents.append(legacy);
+    }
 
     const QJsonObject network = document.value(QStringLiteral("network")).toObject();
     settings.network.proxy

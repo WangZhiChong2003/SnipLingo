@@ -21,6 +21,8 @@ void UiTranslationTest::chineseCatalogueIsEmbedded() {
     QCOMPARE(QCoreApplication::translate("ui::SystemTray", "Quit"), QStringLiteral("退出"));
     QCOMPARE(
         QCoreApplication::translate("SettingsWindow", "Follow system"), QStringLiteral("跟随系统"));
+    QCOMPARE(QCoreApplication::translate("EngineCatalog", "Web translation"),
+        QStringLiteral("网页翻译"));
     QCOMPARE(QCoreApplication::translate("Languages", "Chinese (Simplified)"),
         QStringLiteral("简体中文"));
     // Dynamic strings keep their placeholders.

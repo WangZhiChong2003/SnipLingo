@@ -85,7 +85,7 @@ set_tests_properties(ui_system_tray_test PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 target_compile_definitions(ui_settings_qml_test PRIVATE
     SNIPLYNGO_QML_DIR="${CMAKE_SOURCE_DIR}/src/ui/qml")
-target_link_libraries(ui_settings_qml_test PRIVATE Qt6::Qml Qt6::Quick)
+target_link_libraries(ui_settings_qml_test PRIVATE sniplyngo_runtime Qt6::Qml Qt6::Quick)
 # Exercise the RHI texture path without requiring a display server or a GPU.
 add_test(NAME ui_about_texture_test COMMAND ui_settings_qml_test aboutUsesTheApplicationVersion)
 set_tests_properties(ui_about_texture_test PROPERTIES TIMEOUT 60

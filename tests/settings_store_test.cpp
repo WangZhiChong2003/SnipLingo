@@ -40,6 +40,7 @@ private slots:
     void corruptFileIsPreservedAndDefaultsAreUsed();
     void rejectedVersionIsTreatedAsCorrupt();
     void consentRequiresAConfiguredProvider();
+    void legacyConsentSurvivesMigrationAndCanBeRevoked();
     void grantAndRevokeConsentDriveAutoSend();
     void pausedStateIsPersisted();
 
@@ -211,31 +212,67 @@ void SettingsStoreTest::consentRequiresAConfiguredProvider() {
     QCOMPARE(granted.error().code, core::ErrorCode::ProviderNotConfigured);
 }
 
+void SettingsStoreTest::legacyConsentSurvivesMigrationAndCanBeRevoked() {
+    const ProviderConfig remote = remoteProvider();
+    Settings old;
+    old.provider.providers = {remote};
+    old.provider.activeId = remote.id;
+    old.selection.automaticEnabled = true;
+    QJsonObject document = toJson(old);
+    document.remove(QStringLiteral("consents"));
+    document[QStringLiteral("consent")]
+        = QJsonObject {{QStringLiteral("fingerprint"), remote.fingerprint()},
+            {QStringLiteral("destinationLabel"), remote.destinationLabel()},
+            {QStringLiteral("grantedAt"), QStringLiteral("2026-01-01T00:00:00Z")}};
+    QVERIFY(m_paths.ensureDirectories().ok());
+    QFile file(settingsPath());
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    const QByteArray contents = QJsonDocument(document).toJson();
+    QCOMPARE(file.write(contents), contents.size());
+    file.close();
+
+    auto store = newStore();
+    store->load();
+    QVERIFY(store->current().mayAutoSend());
+    QVERIFY(store->revokeConsent().ok());
+
+    auto reopened = newStore();
+    reopened->load();
+    QVERIFY(!reopened->current().mayAutoSend());
+    QVERIFY(reopened->current().consents.isEmpty());
+}
+
 void SettingsStoreTest::grantAndRevokeConsentDriveAutoSend() {
     auto store = newStore();
     store->load();
 
+    const ProviderConfig first = remoteProvider();
+    ProviderConfig second = first;
+    second.id = QStringLiteral("other");
+    second.baseUrl = QStringLiteral("https://api.example.com/v1");
     Settings next = store->current();
-    next.provider.providers = {remoteProvider()};
-    next.provider.activeId = QStringLiteral("openai-main");
+    next.provider.providers = {first, second};
+    next.provider.activeId = first.id;
     next.language.target = QStringLiteral("zh-Hans");
     next.selection.automaticEnabled = true;
     QVERIFY(store->save(next).ok());
     QVERIFY2(!store->current().mayAutoSend(), "remote destination must require consent");
 
     QVERIFY(store->grantConsent().ok());
-    QVERIFY(store->current().consent.valid());
     QVERIFY(store->current().mayAutoSend());
 
-    // Consent belongs to the destination: pointing the provider elsewhere invalidates it.
-    Settings changed = store->current();
-    changed.provider.providers.first().baseUrl = QStringLiteral("https://api.example.com/v1");
-    QVERIFY(store->save(changed).ok());
-    QVERIFY2(!store->current().mayAutoSend(), "changed destination must require consent again");
-
-    QVERIFY(store->revokeConsent().ok());
-    QVERIFY(!store->current().consent.valid());
+    QVERIFY(store->setActiveProvider(second.id).ok());
     QVERIFY(!store->current().mayAutoSend());
+    QVERIFY(store->grantConsent().ok());
+    QVERIFY(store->current().mayAutoSend());
+
+    auto reopened = newStore();
+    reopened->load();
+    QVERIFY(reopened->current().mayAutoSend());
+    QVERIFY(reopened->revokeConsent().ok());
+    QVERIFY(!reopened->current().mayAutoSend());
+    QVERIFY(reopened->setActiveProvider(first.id).ok());
+    QVERIFY(reopened->current().mayAutoSend());
 }
 
 void SettingsStoreTest::pausedStateIsPersisted() {

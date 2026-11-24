@@ -37,7 +37,12 @@
 <context>
     <name>ConsentSheet</name>
     <message>
-        <location filename="../src/ui/qml/ConsentSheet.qml" line="+67"/>
+        <location filename="../src/ui/qml/ConsentSheet.qml" line="+69"/>
+        <source>Add this engine and allow automatic translation?</source>
+        <translation>添加此引擎并允许自动翻译？</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Confirm the new destination</source>
         <translation>确认新的目标服务</translation>
     </message>
@@ -62,7 +67,7 @@
         <translation>目标服务</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+29"/>
         <source>The service’s privacy policy and charges may apply. You can pause automatic translation or withdraw permission at any time.</source>
         <translation>该服务可能适用其隐私政策和收费。您可以随时暂停自动翻译或撤回授权。</translation>
     </message>
@@ -72,9 +77,19 @@
         <translation>暂不</translation>
     </message>
     <message>
+        <location line="+0"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
         <location line="+7"/>
         <source>Allow</source>
         <translation>允许</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Allow and add engine</source>
+        <translation>允许并添加引擎</translation>
     </message>
 </context>
 <context>
@@ -91,12 +106,12 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+117"/>
+        <location line="+119"/>
         <source>Ollama</source>
         <translation>Ollama</translation>
     </message>
     <message>
-        <location line="-116"/>
+        <location line="-118"/>
         <source>Use a model already installed in your local Ollama service.</source>
         <translation>使用已安装在本机 Ollama 服务中的模型。</translation>
     </message>
@@ -162,16 +177,17 @@
     </message>
     <message>
         <location line="+0"/>
-        <source>Web demos</source>
-        <translation>网页演示</translation>
+        <source>Web translation</source>
+        <translation>网页翻译</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location filename="../src/ui/qml/ConsentSheet.qml" line="-33"/>
+        <location filename="../src/ui/qml/EngineCatalog.qml" line="+21"/>
         <source>Unofficial, no key required. The service may limit requests or stop working.</source>
         <translation>非官方接口，无需密钥。服务可能限制请求次数或随时停止工作。</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location filename="../src/ui/qml/EngineCatalog.qml" line="+36"/>
         <source>Configure</source>
         <translation>配置</translation>
     </message>
@@ -496,12 +512,12 @@
     </message>
     <message>
         <location line="+2"/>
-        <location line="+768"/>
+        <location line="+778"/>
         <source>Restart SnipLingo to apply the floating result mode.</source>
         <translation>重启 SnipLingo 以应用悬浮结果模式。</translation>
     </message>
     <message>
-        <location line="-766"/>
+        <location line="-776"/>
         <source>Select text in another app, then return here to see the translation.</source>
         <translation>在其他应用中选中文本，然后返回此处查看翻译。</translation>
     </message>
@@ -536,8 +552,8 @@
         <translation>无法访问选区。请在设置中检查划词来源。</translation>
     </message>
     <message>
-        <location line="+40"/>
-        <location line="+71"/>
+        <location line="+47"/>
+        <location line="+74"/>
         <source>SnipLingo</source>
         <translation>SnipLingo</translation>
     </message>
@@ -580,12 +596,12 @@
     </message>
     <message>
         <location line="-630"/>
-        <location line="+726"/>
+        <location line="+725"/>
         <source>Network</source>
         <translation>网络</translation>
     </message>
     <message>
-        <location line="-725"/>
+        <location line="-724"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
@@ -913,7 +929,7 @@
         <translation>跟随系统</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>Follow system uses Chinese on a Chinese desktop and English everywhere else. Translation results are not affected.</source>
         <translation>跟随系统时，中文桌面使用中文，其他语言环境使用英文。翻译结果不受影响。</translation>
     </message>

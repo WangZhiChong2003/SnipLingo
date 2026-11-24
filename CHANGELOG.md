@@ -10,6 +10,8 @@ User-visible changes are listed here. See [the README](README.md) for installati
   it reaches its height limit.
 - Widen the floating result for longer lines. Limit its width and height to half of the current
   display's work area, including when interface zoom is enabled.
+- Call the engine catalog category **Web translation** and show provider names for configured web
+  engines. The catalog explains that these services use unofficial endpoints.
 
 ### Fixed
 
@@ -17,6 +19,12 @@ User-visible changes are listed here. See [the README](README.md) for installati
   **Settings → Interface → Result text size**.
 - Keep the XWayland translation card open when expanding the original moves the card away from
   the pointer.
+- Keep the chosen language visible in **Settings → Interface** after switching languages.
+- Keep language changes from reopening automatic translation consent dialogs.
+- Match the corner radius of consent dialogs and floating results to the main window.
+- Remember automatic sending permission for each destination. Save new engines that require
+  permission only after approval, and show the unofficial endpoint notice in their consent dialogs.
+- Restore automatic selection on startup without opening a consent dialog for an unapproved engine.
 
 ## 1.0.0
 

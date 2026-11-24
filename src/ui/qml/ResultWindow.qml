@@ -161,6 +161,7 @@ Window {
             id: resultCard
             anchors.fill: parent
             colors: theme
+            radius: theme.radiusWindowFrame
             controller: root.resultController
             visible: root.showingCard
             pinVisible: true

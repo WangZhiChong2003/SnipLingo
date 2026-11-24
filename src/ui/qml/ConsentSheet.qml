@@ -6,9 +6,11 @@ import QtQuick.Layouts
 Dialog {
     id: sheet
 
-    property var controller: null
     property string destination: ""
     property bool stale: false
+    property bool addingEngine: false
+    property bool unofficial: false
+    signal approved()
 
     Theme { id: theme }
 
@@ -18,10 +20,10 @@ Dialog {
     closePolicy: Popup.CloseOnEscape
     padding: 24
     onOpened: cancelButton.forceActiveFocus()
-    Overlay.modal: Rectangle { radius: 10; color: theme.overlay }
+    Overlay.modal: Rectangle { radius: theme.radiusWindowFrame; color: theme.overlay }
 
     background: Rectangle {
-        radius: 20
+        radius: theme.radiusWindowFrame
         color: theme.surface
         border.color: theme.border
     }
@@ -64,8 +66,9 @@ Dialog {
                         spacing: 4
                         Text {
                             Layout.fillWidth: true
-                            text: sheet.stale ? qsTr("Confirm the new destination")
-                                              : qsTr("Translate selections automatically?")
+                            text: sheet.addingEngine ? qsTr("Add this engine and allow automatic translation?")
+                                  : sheet.stale ? qsTr("Confirm the new destination")
+                                                : qsTr("Translate selections automatically?")
                             color: theme.textPrimary
                             font.pixelSize: 19
                             font.bold: true
@@ -76,7 +79,7 @@ Dialog {
 
                 Text {
                     Layout.fillWidth: true
-                    text: sheet.stale
+                    text: sheet.stale && !sheet.addingEngine
                           ? qsTr("The destination has changed. After you select text, SnipLingo will send it to this service automatically.")
                           : qsTr("After you select text, SnipLingo will send it to this service automatically, even if you do not open the translation.")
                     color: theme.textPrimary
@@ -112,6 +115,17 @@ Dialog {
                 }
 
                 Text {
+                    objectName: "unofficialConsentWarning"
+                    Layout.fillWidth: true
+                    visible: sheet.unofficial
+                    text: qsTranslate("EngineCatalog", "Unofficial, no key required. The service may limit requests or stop working.")
+                    color: theme.textPrimary
+                    font.bold: true
+                    font.pixelSize: theme.fontOriginal
+                    wrapMode: Text.Wrap
+                }
+
+                Text {
                     Layout.fillWidth: true
                     text: qsTr("The service’s privacy policy and charges may apply. You can pause automatic translation or withdraw permission at any time.")
                     color: theme.textSecondary
@@ -130,18 +144,17 @@ Dialog {
                 objectName: "cancelConsentButton"
                 colors: theme
                 minimumButtonWidth: 104
-                text: qsTr("Not now")
+                text: sheet.addingEngine ? qsTr("Cancel") : qsTr("Not now")
                 onClicked: sheet.close()
             }
             AppButton {
                 objectName: "allowConsentButton"
                 colors: theme
                 minimumButtonWidth: 104
-                text: qsTr("Allow")
+                text: sheet.addingEngine ? qsTr("Allow and add engine") : qsTr("Allow")
                 highlighted: true
                 onClicked: {
-                    if (sheet.controller !== null)
-                        sheet.controller.grantConsent();
+                    sheet.approved();
                     sheet.close();
                 }
             }

@@ -245,13 +245,13 @@ core::Result<void> RequestCoordinator::recheckConsent() {
         return core::Error {core::ErrorCode::ProviderNotConfigured,
             QStringLiteral("no active provider is configured")};
     }
-    if (current.mayAutoSend()) {
+    if (active->isLocal() || current.hasConsentFor(active->fingerprint())) {
         m_consentNotified = false;
         return {};
     }
     if (!m_consentNotified) {
         m_consentNotified = true;
-        emit consentRequired(active->destinationLabel(), current.consent.valid());
+        emit consentRequired(active->destinationLabel(), !current.consents.isEmpty());
     }
     return {};
 }
@@ -456,7 +456,7 @@ void RequestCoordinator::beginTranslate(
     const settings::ProviderConfig *active = current.activeProvider();
 
     if (origin == Origin::AutomaticSelection && !current.mayAutoSend()) {
-        const bool stale = active != nullptr && current.consent.valid();
+        const bool stale = active != nullptr && !current.consents.isEmpty();
         if (!m_consentNotified) {
             m_consentNotified = true;
             emit consentRequired(active ? active->destinationLabel() : QString(), stale);
@@ -537,6 +537,16 @@ void RequestCoordinator::onFailed(quint64 generation, core::Error error) {
 // ---------------------------------------------------------------- settings
 
 void RequestCoordinator::onSettingsChanged(const settings::Settings &current) {
+    const settings::ProviderConfig *active = current.activeProvider();
+    const QString destination
+        = active != nullptr && !active->isLocal() ? active->fingerprint() : QString();
+    const bool granted = current.hasConsentFor(destination);
+    const bool consentContextChanged
+        = destination != m_consentDestinationFingerprint || granted != m_destinationHasConsent;
+    // Keep the comparison current even when observation is paused or a local test is running.
+    m_consentDestinationFingerprint = destination;
+    m_destinationHasConsent = granted;
+
     if (m_updatingSettings)
         return;
 
@@ -564,10 +574,7 @@ void RequestCoordinator::onSettingsChanged(const settings::Settings &current) {
         setState(State::Paused);
         return;
     }
-    const settings::ProviderConfig *active = current.activeProvider();
-    // Only meaningful while automatic observation runs; with the mode off there is nothing to
-    // authorise.
-    if (m_observed && active != nullptr && !active->isLocal() && !current.mayAutoSend()) {
+    if (m_observed && consentContextChanged && !destination.isEmpty() && !granted) {
         // Consent was revoked or the destination changed while running: stop sending and ask again.
         m_consentNotified = false;
         recheckConsent();

@@ -40,7 +40,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 6
         Repeater {
-            model: [qsTr("On device"), qsTr("Public API"), qsTr("Your API key"), qsTr("Web demos")]
+            model: [qsTr("On device"), qsTr("Public API"), qsTr("Your API key"), qsTr("Web translation")]
             AppButton {
                 required property int index
                 required property string modelData
@@ -58,10 +58,12 @@ ColumnLayout {
         }
     }
     Text {
+        objectName: "webEngineWarning"
         Layout.fillWidth: true
         visible: catalog.category === 3
         text: qsTr("Unofficial, no key required. The service may limit requests or stop working.")
-        color: catalog.colors.textSecondary
+        color: catalog.colors.textPrimary
+        font.bold: true
         font.pixelSize: catalog.colors.fontOriginal
         wrapMode: Text.Wrap
     }

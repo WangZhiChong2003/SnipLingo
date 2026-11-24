@@ -132,6 +132,8 @@ private:
     QString m_streamed;
 
     ResultView m_view;
+    QString m_consentDestinationFingerprint;
+    bool m_destinationHasConsent = false;
     bool m_consentNotified = false;
     bool m_updatingSettings = false;  // guards re-entrancy from SettingsStore::changed
 };
